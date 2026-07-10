@@ -1,0 +1,52 @@
+# Python bytecode (compiled Python files)
+__pycache__/
+*.py[cod]
+*.so
+
+# Distribution/packaging
+*.egg-info/
+dist/
+wheels/
+build/
+
+# Virtual environments (huge, recreatable)
+venv/
+.venv/
+env/
+.env
+*.env
+!.env.example
+
+# Testing artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+.uv-cache/
+tmp/
+
+# IDE settings (personal preferences)
+.vscode/
+.idea/
+*.swp
+
+# OS files (irrelevant to project)
+.DS_Store
+Thumbs.db
+
+# Local agent configuration and generated metadata.
+.codex/
+.claude/
+
+# Project-specific
+# Local runtime data, generated indexes, exports, and models.
+data/
+models/
+exports/
+logs/
+cache/
+
+# Local planning drafts that are not part of the public repo.
+.plans/
