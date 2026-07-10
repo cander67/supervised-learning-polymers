@@ -1,0 +1,148 @@
+[project]
+name = "supervised-learning-polymers"
+version = "0.1.0"
+description = "Supervised learning models for predicting polymer properties from molecular structures."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    # Numerical and data dependencies.
+    "numpy>=2.0,<3",
+    "pandas>=2.2,<3",
+    "scipy>=1.13,<2",
+
+    # Cheminformatics: SMILES parsing, standardization,
+    # descriptors, fingerprints, and conformer generation.
+    "rdkit>=2025.3,<2027",
+
+    # Classical supervised-learning models and pipelines.
+    "scikit-learn>=1.6,<2",
+    "xgboost>=3.3,<4",
+
+    # Reusable experiment configuration, tracking, evaluation,
+    # grid/random search, and Bayesian optimization.
+    "mlbag[sklearn,bayesian]",
+]
+
+[project.optional-dependencies]
+# Add these only when development reaches the corresponding model family.
+neural = [
+    "torch>=2.6,<3",
+]
+
+gnn = [
+    "torch>=2.6,<3",
+    "torch-geometric>=2.6,<3",
+]
+
+transformer = [
+    "torch>=2.6,<3",
+    "transformers>=4.50,<6",
+    "tokenizers>=0.21,<1",
+]
+
+notebooks = [
+    "ipykernel>=6.29,<7",
+    "jupyterlab>=4.3,<5",
+]
+
+dev = [
+    "mypy>=1.14,<2",
+    "pandas-stubs>=2.2",
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "ruff>=0.9,<1",
+]
+
+[project.urls]
+Repository = "https://github.com/cander67/supervised-learning-polymers"
+Issues = "https://github.com/cander67/supervised-learning-polymers/issues"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/supervised_learning_polymers"]
+
+# Use the local sibling checkout of mlbag during development.
+# Expected directory layout:
+#
+# parent-directory/
+# ├── mlbag/
+# └── supervised-learning-polymers/
+#
+[tool.uv.sources]
+mlbag = { path = "../mlbag", editable = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    ".uv-cache",
+    ".venv",
+    "artifacts",
+    "data",
+    "example_code",
+    "notebooks",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # import sorting
+    "UP",  # Python syntax upgrades
+    "B",   # flake8-bugbear
+]
+ignore = [
+    "E501", # Line length is handled by the formatter.
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+plugins = []
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "--import-mode=importlib",
+    "-m",
+    "not slow and not live and not gpu",
+    "--strict-markers",
+    "--cov=supervised_learning_polymers",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: computationally expensive tests excluded from the default suite",
+    "live: tests that use external services, downloaded models, or non-fixture datasets",
+    "gpu: tests that require CUDA or Apple Metal acceleration",
+    "chemistry: tests for SMILES parsing, capping, standardization, or molecular features",
+    "integration: end-to-end tests involving multiple project components",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["supervised_learning_polymers"]
+omit = [
+    "tests/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
