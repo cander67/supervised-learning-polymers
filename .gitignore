@@ -50,3 +50,4 @@ cache/
 
 # Local planning drafts that are not part of the public repo.
 .plans/
+.background/
