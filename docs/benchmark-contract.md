@@ -159,3 +159,6 @@ The fixture bundle includes:
 - a chemistry-failure summary shaped for triage before the full chemistry audit exists;
 - experiment metadata, run status, progress steps, and artifact paths;
 - result metrics, leaderboard rows, and notes for review surfaces.
+
+The first generated-report path is documented in
+[Interface Discovery CLI Report](interface-discovery-cli-report.md).

@@ -10,6 +10,10 @@ from supervised_learning_polymers.interface_discovery import (
     TargetModeSummary,
     load_interface_discovery_artifact,
 )
+from supervised_learning_polymers.interface_report import (
+    render_interface_discovery_report,
+    write_interface_discovery_report,
+)
 from supervised_learning_polymers.manifest import (
     BenchmarkManifest,
     ConfigReference,
@@ -54,4 +58,6 @@ __all__ = [
     "ValidRange",
     "load_interface_discovery_artifact",
     "open_polymer_target_config",
+    "render_interface_discovery_report",
+    "write_interface_discovery_report",
 ]
