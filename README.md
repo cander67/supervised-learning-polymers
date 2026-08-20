@@ -6,6 +6,7 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 
 ## Documentation
 
+- [Benchmark contract](docs/benchmark-contract.md)
 - [Target properties](docs/target-properties.md)
 
 ## License
