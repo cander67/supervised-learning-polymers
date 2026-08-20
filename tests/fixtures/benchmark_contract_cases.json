@@ -1,0 +1,182 @@
+{
+  "valid_targets": {
+    "single": {
+      "targets": [
+        {"name": "Tg", "unit": "deg C"},
+        {
+          "name": "FFV",
+          "unit": "dimensionless",
+          "valid_range": {"minimum": 0.0, "maximum": 1.0}
+        },
+        {"name": "Tc", "unit": "W/(m*K)"},
+        {"name": "Density", "unit": "g/cm^3"},
+        {"name": "Rg", "unit": "Angstrom"}
+      ],
+      "groups": {
+        "thermal": ["Tg", "Tc"],
+        "sequential_poc": ["FFV", "Density", "Tc", "Tg", "Rg"]
+      },
+      "mode": {"mode": "single", "target": "FFV"}
+    },
+    "group": {
+      "targets": [
+        {"name": "Tg", "unit": "deg C"},
+        {
+          "name": "FFV",
+          "unit": "dimensionless",
+          "valid_range": {"minimum": 0.0, "maximum": 1.0}
+        },
+        {"name": "Tc", "unit": "W/(m*K)"},
+        {"name": "Density", "unit": "g/cm^3"},
+        {"name": "Rg", "unit": "Angstrom"}
+      ],
+      "groups": {
+        "thermal": ["Tg", "Tc"],
+        "sequential_poc": ["FFV", "Density", "Tc", "Tg", "Rg"]
+      },
+      "mode": {"mode": "group", "group": "thermal"}
+    },
+    "all": {
+      "targets": [
+        {"name": "Tg", "unit": "deg C"},
+        {
+          "name": "FFV",
+          "unit": "dimensionless",
+          "valid_range": {"minimum": 0.0, "maximum": 1.0}
+        },
+        {"name": "Tc", "unit": "W/(m*K)"},
+        {"name": "Density", "unit": "g/cm^3"},
+        {"name": "Rg", "unit": "Angstrom"}
+      ],
+      "groups": {
+        "thermal": ["Tg", "Tc"],
+        "sequential_poc": ["FFV", "Density", "Tc", "Tg", "Rg"]
+      },
+      "mode": {"mode": "all"}
+    },
+    "sequential": {
+      "targets": [
+        {"name": "Tg", "unit": "deg C"},
+        {
+          "name": "FFV",
+          "unit": "dimensionless",
+          "valid_range": {"minimum": 0.0, "maximum": 1.0}
+        },
+        {"name": "Tc", "unit": "W/(m*K)"},
+        {"name": "Density", "unit": "g/cm^3"},
+        {"name": "Rg", "unit": "Angstrom"}
+      ],
+      "groups": {
+        "thermal": ["Tg", "Tc"],
+        "sequential_poc": ["FFV", "Density", "Tc", "Tg", "Rg"]
+      },
+      "mode": {
+        "mode": "sequential",
+        "order": ["FFV", "Density", "Tc", "Tg", "Rg"],
+        "prediction_source": {
+          "training": "out_of_fold_predictions",
+          "validation": "upstream_model_predictions",
+          "test": "upstream_model_predictions"
+        }
+      }
+    }
+  },
+  "invalid_targets": {
+    "unknown_target": {
+      "targets": [{"name": "FFV", "unit": "dimensionless"}],
+      "mode": {"mode": "single", "target": "Missing"}
+    },
+    "missing_metadata": {
+      "targets": [{"name": "FFV"}],
+      "mode": {"mode": "single", "target": "FFV"}
+    },
+    "bad_range": {
+      "targets": [
+        {
+          "name": "FFV",
+          "unit": "dimensionless",
+          "valid_range": {"minimum": 1.0, "maximum": 0.0}
+        }
+      ],
+      "mode": {"mode": "single", "target": "FFV"}
+    },
+    "duplicate_definition": {
+      "targets": [
+        {"name": "FFV", "unit": "dimensionless"},
+        {"name": "FFV", "unit": "dimensionless"}
+      ],
+      "mode": {"mode": "all"}
+    },
+    "illegal_sequential": {
+      "targets": [
+        {"name": "FFV", "unit": "dimensionless"},
+        {"name": "Density", "unit": "g/cm^3"}
+      ],
+      "mode": {
+        "mode": "sequential",
+        "order": ["FFV", "Density"],
+        "prediction_source": {
+          "training": "out_of_fold_predictions",
+          "validation": "true_labels",
+          "test": "upstream_model_predictions"
+        }
+      }
+    }
+  },
+  "valid_manifests": {
+    "train_all_targets": {
+      "dataset": {
+        "dataset_version": "open-polymer-train-v1",
+        "sample_id_column": "id",
+        "smiles_column": "SMILES",
+        "target_columns": ["Tg", "FFV", "Tc", "Density", "Rg"]
+      },
+      "target_ref": "all",
+      "chemistry": {"config_id": "chemistry-placeholder-v1"},
+      "representation": {"config_id": "representation-placeholder-v1"},
+      "split": {"config_id": "split-placeholder-v1"},
+      "model": {"config_id": "model-placeholder-v1"},
+      "reporting": {"config_id": "reporting-placeholder-v1"}
+    },
+    "public_sequential_targets": {
+      "dataset": {
+        "dataset_version": "open-polymer-public-v1",
+        "sample_id_column": null,
+        "missing_sample_id_strategy": "split_row_index",
+        "smiles_column": "SMILES",
+        "target_columns": ["Tg", "FFV", "Tc", "Density", "Rg"]
+      },
+      "target_ref": "sequential",
+      "chemistry": {"config_id": "chemistry-placeholder-v1"},
+      "representation": {"config_id": "representation-placeholder-v1"},
+      "split": {"config_id": "public-split-placeholder-v1"},
+      "model": {"config_id": "model-placeholder-v1"},
+      "reporting": {"config_id": "reporting-placeholder-v1"}
+    }
+  },
+  "invalid_manifests": {
+    "missing_component_identity": {
+      "dataset": {
+        "dataset_version": "open-polymer-train-v1",
+        "target_columns": ["Tg", "FFV", "Tc", "Density", "Rg"]
+      },
+      "target_ref": "all",
+      "representation": {"config_id": "representation-placeholder-v1"},
+      "split": {"config_id": "split-placeholder-v1"},
+      "model": {"config_id": "model-placeholder-v1"},
+      "reporting": {"config_id": "reporting-placeholder-v1"}
+    },
+    "derived_identity_reuses_dataset_version": {
+      "dataset": {
+        "dataset_version": "open-polymer-train-v1",
+        "target_columns": ["Tg", "FFV", "Tc", "Density", "Rg"]
+      },
+      "target_ref": "all",
+      "chemistry": {"config_id": "open-polymer-train-v1"},
+      "representation": {"config_id": "representation-placeholder-v1"},
+      "split": {"config_id": "split-placeholder-v1"},
+      "model": {"config_id": "model-placeholder-v1"},
+      "reporting": {"config_id": "reporting-placeholder-v1"}
+    }
+  }
+}
