@@ -64,5 +64,6 @@ through config, data/model code, artifacts, tests, and docs.
 
 ## Active Implementation
 
-- Active PRD: `docs/prds/01-benchmark-contract-and-target-config.md`
-- Active ignored plan: `.plans/implementation/01-benchmark-contract-and-target-config-plan.md`
+- Active PRD: `docs/prds/02-public-interface-discovery.md`
+- Active ignored plan: `.plans/implementation/02-public-interface-discovery-plan.md`
+- Discovery criteria: `docs/interface-discovery-criteria.md`

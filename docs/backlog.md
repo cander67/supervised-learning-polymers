@@ -15,6 +15,7 @@ Status legend:
 | Order | Status | PRD | Scope | Notes |
 | --- | --- | --- | --- | --- |
 | 1 | Ready for review | [Benchmark Contract And Target Config](prds/01-benchmark-contract-and-target-config.md) | Typed target, dataset, manifest, and sequential leakage contract. | Implemented with fixture-sized behavior tests and docs. |
+| 2 | Active | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | Phase 1 rubric started in [Public Interface Discovery Criteria](interface-discovery-criteria.md). |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -24,7 +25,6 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 
 | Order | Status | PRD | Scope | Blocked by |
 | --- | --- | --- | --- | --- |
-| 2 | Planned | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | PRD 01 contract |
 | 3 | Planned | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | PRD 01 contract |
 | 4 | Planned | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | PRD 03 chemistry audit |
 | 5 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | PRD 03 chemistry audit |
