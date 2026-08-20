@@ -1,3 +1,4 @@
+from supervised_learning_polymers.interface_backend import create_interface_discovery_server
 from supervised_learning_polymers.interface_discovery import (
     ChemistryFailureGroup,
     ChemistryFailureSummary,
@@ -61,6 +62,7 @@ __all__ = [
     "TargetModeSummary",
     "ValidRange",
     "build_interface_discovery_notebook",
+    "create_interface_discovery_server",
     "load_interface_discovery_artifact",
     "open_polymer_target_config",
     "render_interface_discovery_report",

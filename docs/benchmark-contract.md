@@ -160,6 +160,7 @@ The fixture bundle includes:
 - experiment metadata, run status, progress steps, and artifact paths;
 - result metrics, leaderboard rows, and notes for review surfaces.
 
-The first generated-report paths are documented in
-[Interface Discovery CLI Report](interface-discovery-cli-report.md) and
-[Interface Discovery Notebook Report](interface-discovery-notebook-report.md).
+The first generated-report and GUI paths are documented in
+[Interface Discovery CLI Report](interface-discovery-cli-report.md),
+[Interface Discovery Notebook Report](interface-discovery-notebook-report.md), and
+[Interface Discovery GUI Backend](interface-discovery-gui-backend.md).
