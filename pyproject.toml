@@ -8,6 +8,7 @@ dependencies = [
     # Numerical and data dependencies.
     "numpy>=2.0,<3",
     "pandas>=2.2,<3",
+    "pydantic>=2.6,<3",
     "scipy>=1.13,<2",
 
     # Cheminformatics: SMILES parsing, standardization,
