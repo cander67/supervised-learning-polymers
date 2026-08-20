@@ -1,3 +1,8 @@
+from supervised_learning_polymers.manifest import (
+    BenchmarkManifest,
+    ConfigReference,
+    DatasetConfig,
+)
 from supervised_learning_polymers.targets import (
     OPEN_POLYMER_TARGET_ORDER,
     SEQUENTIAL_POC_ORDER,
@@ -13,6 +18,9 @@ from supervised_learning_polymers.targets import (
 
 __all__ = [
     "AllTargetMode",
+    "BenchmarkManifest",
+    "ConfigReference",
+    "DatasetConfig",
     "GroupTargetMode",
     "OPEN_POLYMER_TARGET_ORDER",
     "SEQUENTIAL_POC_ORDER",
