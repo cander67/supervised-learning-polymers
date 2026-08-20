@@ -4,6 +4,10 @@ Evaluation of supervised learning models trained on data from the [Open Polymer 
 
 Reliable models can be deployed for predicting polymer properties, aiding in material design and product development by providing accurate predictions based on supervised learning models trained on polymer datasets.
 
+## Documentation
+
+- [Target properties](docs/target-properties.md)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
