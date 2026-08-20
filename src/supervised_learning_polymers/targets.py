@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 TargetName = Literal["Tg", "FFV", "Tc", "Density", "Rg"]
 TargetModeName = Literal["single", "group", "all", "sequential"]
 MissingValuePolicy = Literal["preserve"]
+TrainingPredictionSource = Literal["out_of_fold_predictions"]
+EvaluationPredictionSource = Literal["upstream_model_predictions"]
 
 OPEN_POLYMER_TARGET_ORDER: tuple[TargetName, ...] = ("Tg", "FFV", "Tc", "Density", "Rg")
 SEQUENTIAL_POC_ORDER: tuple[TargetName, ...] = ("FFV", "Density", "Tc", "Tg", "Rg")
@@ -56,9 +58,18 @@ class AllTargetMode(ContractModel):
     mode: Literal["all"] = "all"
 
 
+class SequentialPredictionSource(ContractModel):
+    """Leakage-safe predicted-property source policy for sequential target mode."""
+
+    training: TrainingPredictionSource = "out_of_fold_predictions"
+    validation: EvaluationPredictionSource = "upstream_model_predictions"
+    test: EvaluationPredictionSource = "upstream_model_predictions"
+
+
 class SequentialTargetMode(ContractModel):
     mode: Literal["sequential"] = "sequential"
-    order: tuple[str, ...] = Field(min_length=1)
+    order: tuple[str, ...] = Field(min_length=2)
+    prediction_source: SequentialPredictionSource
 
 
 TargetMode = Annotated[

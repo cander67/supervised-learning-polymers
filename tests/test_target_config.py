@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from supervised_learning_polymers import (
     AllTargetMode,
     GroupTargetMode,
+    SequentialPredictionSource,
     SequentialTargetMode,
     SingleTargetMode,
     TargetConfig,
@@ -48,10 +49,65 @@ def test_all_target_config_resolves_all_configured_targets() -> None:
 
 def test_sequential_config_accepts_ordered_dependency_chain() -> None:
     config = open_polymer_target_config(
-        SequentialTargetMode(order=("FFV", "Density", "Tc", "Tg", "Rg"))
+        SequentialTargetMode(
+            order=("FFV", "Density", "Tc", "Tg", "Rg"),
+            prediction_source=SequentialPredictionSource(),
+        )
     )
 
     assert config.resolve_targets() == ("FFV", "Density", "Tc", "Tg", "Rg")
+
+
+def test_sequential_config_requires_prediction_source_strategy() -> None:
+    with pytest.raises(ValidationError, match="prediction_source"):
+        SequentialTargetMode.model_validate(
+            {"mode": "sequential", "order": ["FFV", "Density", "Tc", "Tg", "Rg"]}
+        )
+
+
+def test_sequential_prediction_source_prevents_validation_label_leakage() -> None:
+    with pytest.raises(ValidationError, match="validation"):
+        SequentialTargetMode.model_validate(
+            {
+                "mode": "sequential",
+                "order": ["FFV", "Density", "Tc", "Tg", "Rg"],
+                "prediction_source": {
+                    "training": "out_of_fold_predictions",
+                    "validation": "true_labels",
+                    "test": "upstream_model_predictions",
+                },
+            }
+        )
+
+
+def test_sequential_prediction_source_requires_out_of_fold_training_predictions() -> None:
+    with pytest.raises(ValidationError, match="training"):
+        SequentialTargetMode.model_validate(
+            {
+                "mode": "sequential",
+                "order": ["FFV", "Density", "Tc", "Tg", "Rg"],
+                "prediction_source": {
+                    "training": "true_labels",
+                    "validation": "upstream_model_predictions",
+                    "test": "upstream_model_predictions",
+                },
+            }
+        )
+
+
+def test_sequential_prediction_source_prevents_test_label_leakage() -> None:
+    with pytest.raises(ValidationError, match="test"):
+        SequentialTargetMode.model_validate(
+            {
+                "mode": "sequential",
+                "order": ["FFV", "Density", "Tc", "Tg", "Rg"],
+                "prediction_source": {
+                    "training": "out_of_fold_predictions",
+                    "validation": "upstream_model_predictions",
+                    "test": "true_labels",
+                },
+            }
+        )
 
 
 def test_target_metadata_supports_units_ranges_missing_policy_and_transform() -> None:
@@ -117,4 +173,26 @@ def test_duplicate_targets_inside_one_group_fail() -> None:
             ),
             groups={"bad": ("FFV", "FFV")},
             mode=GroupTargetMode(group="bad"),
+        )
+
+
+def test_duplicate_targets_inside_sequential_order_fail() -> None:
+    with pytest.raises(ValidationError, match="sequential mode contains duplicate targets: FFV"):
+        open_polymer_target_config(
+            SequentialTargetMode(
+                order=("FFV", "Density", "FFV"),
+                prediction_source=SequentialPredictionSource(),
+            )
+        )
+
+
+def test_unknown_targets_inside_sequential_order_fail() -> None:
+    with pytest.raises(
+        ValidationError, match="sequential mode references unknown targets: Missing"
+    ):
+        open_polymer_target_config(
+            SequentialTargetMode(
+                order=("FFV", "Density", "Missing"),
+                prediction_source=SequentialPredictionSource(),
+            )
         )
