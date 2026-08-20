@@ -59,6 +59,7 @@ Repository = "https://github.com/cander67/supervised-learning-polymers"
 Issues = "https://github.com/cander67/supervised-learning-polymers/issues"
 
 [project.scripts]
+slp-interface-notebook = "supervised_learning_polymers.interface_notebook:main"
 slp-interface-report = "supervised_learning_polymers.interface_report:main"
 
 [build-system]
