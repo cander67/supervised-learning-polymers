@@ -21,6 +21,20 @@ stereochemistry, or drop isotopes. The audit stores `canonical_smiles` from the 
 Standardization failures are emitted as structured `standardization_error` records during batch
 runs, not uncaught exceptions that stop the whole audit.
 
+## Initial Capping Strategies
+
+The default `CappingConfig` uses `strategy = uncapped` and `version = 1`. This preserves wildcard
+attachment points in `capped_smiles` as a control path.
+
+Two simple terminal capping strategies are available for wildcard polymer repeat units:
+
+- `hydrogen`: replaces wildcard attachment atoms with explicit hydrogen atoms.
+- `carbon`: replaces wildcard attachment atoms with carbon atoms when RDKit valence checks permit.
+
+Raw source SMILES, parsed canonical SMILES, standardized SMILES, capped SMILES, and attachment-point
+metadata are stored separately. Capping failures are emitted as structured `capping_error` records
+during batch runs.
+
 ## Cache Identity
 
 Chemistry cache keys include:

@@ -247,12 +247,25 @@ def audit_dataset_row(
             stage="standardization",
         )
 
+    try:
+        capped_molecule = cap_molecule(standardized_molecule, chemistry.capping)
+        capped_smiles = Chem.MolToSmiles(capped_molecule, canonical=True, isomericSmiles=True)
+    except Exception as error:
+        return _failed_record(
+            sample_id=sample_id,
+            raw_smiles=raw_smiles,
+            failure_type="capping_error",
+            message=f"RDKit capping failed: {error}",
+            stage="capping",
+        )
+
     return ChemistryAuditRecord(
         sample_id=sample_id,
         raw_smiles=raw_smiles,
         status="valid",
         canonical_smiles=canonical_smiles,
         standardized_smiles=standardized_smiles,
+        capped_smiles=capped_smiles,
         attachment_points=_attachment_points(molecule),
     )
 
@@ -272,6 +285,24 @@ def standardize_molecule(molecule: Any, config: StandardizationConfig) -> Any:
     if config.isotope_policy == "drop":
         standardized = _drop_isotopes(standardized)
     return standardized
+
+
+def cap_molecule(molecule: Any, config: CappingConfig) -> Any:
+    """Apply a simple terminal cap to wildcard attachment points."""
+
+    if config.strategy == "uncapped":
+        return Chem.Mol(molecule)
+
+    atomic_num = {"hydrogen": 1, "carbon": 6}[config.strategy]
+    capped = Chem.RWMol(molecule)
+    for atom in capped.GetAtoms():
+        if atom.GetAtomicNum() == 0:
+            atom.SetAtomicNum(atomic_num)
+            atom.SetNoImplicit(False)
+
+    capped_molecule = capped.GetMol()
+    Chem.SanitizeMol(capped_molecule)
+    return capped_molecule
 
 
 def chemistry_cache_key(
