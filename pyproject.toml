@@ -59,6 +59,7 @@ Repository = "https://github.com/cander67/supervised-learning-polymers"
 Issues = "https://github.com/cander67/supervised-learning-polymers/issues"
 
 [project.scripts]
+slp-chemistry-audit = "supervised_learning_polymers.chemistry_audit_cli:main"
 slp-interface-gui = "supervised_learning_polymers.interface_backend:main"
 
 [build-system]

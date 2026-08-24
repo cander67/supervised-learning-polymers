@@ -62,3 +62,24 @@ Each bundle contains:
 - `summary.json`: total, valid, failed, and failure-group counts for review surfaces.
 - `metadata.json`: dataset version, chemistry config ID, RDKit version, settings, cache key,
   creation timestamp, and output paths.
+
+## Full Training Audit Script
+
+Run the full training-set audit explicitly with:
+
+```bash
+slp-chemistry-audit data/train/train.csv \
+  --output-root artifacts \
+  --dataset-version open-polymer-train-v1 \
+  --chemistry-config-id chemistry-audit-v1
+```
+
+The command reads the configured sample ID and SMILES columns, applies the selected standardization
+and capping settings, writes the artifact bundle, and prints total, valid, and failed record counts.
+
+Useful options include `--sample-id-column`, `--no-sample-id-column`, `--smiles-column`,
+`--target-columns`, `--fragment-policy`, `--charge-policy`, `--tautomer-policy`,
+`--stereochemistry-policy`, `--isotope-policy`, `--capping-strategy`, and `--capping-version`.
+
+This command is intentionally outside the default test suite. Use fixture tests for deterministic
+CI and run the full-data audit only when local source data is available.
