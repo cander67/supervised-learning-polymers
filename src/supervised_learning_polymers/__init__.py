@@ -7,6 +7,9 @@ from supervised_learning_polymers.chemistry import (
     ChemistryAuditSummary,
     ChemistryFailureRecord,
     StandardizationConfig,
+    audit_dataset_row,
+    audit_dataset_rows,
+    summarize_chemistry_records,
 )
 from supervised_learning_polymers.interface_backend import create_interface_discovery_server
 from supervised_learning_polymers.interface_discovery import (
@@ -75,7 +78,10 @@ __all__ = [
     "TargetMetadata",
     "TargetModeSummary",
     "ValidRange",
+    "audit_dataset_row",
+    "audit_dataset_rows",
     "create_interface_discovery_server",
     "load_interface_discovery_artifact",
     "open_polymer_target_config",
+    "summarize_chemistry_records",
 ]

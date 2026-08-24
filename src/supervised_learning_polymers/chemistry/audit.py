@@ -1,11 +1,19 @@
 """Typed chemistry audit contracts for polymer source data."""
 
-from typing import Literal
+from collections.abc import Mapping, Sequence
+from importlib import import_module
+from math import isnan
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 
 from supervised_learning_polymers.manifest import DatasetConfig
 from supervised_learning_polymers.targets import ContractModel
+
+_rdkit: Any = import_module("rdkit")
+Chem: Any = import_module("rdkit.Chem")
+rdBase: Any = import_module("rdkit.rdBase")
+RDKIT_VERSION = str(_rdkit.__version__)
 
 FragmentPolicy = Literal["keep_all", "largest_fragment"]
 ChargePolicy = Literal["preserve", "neutralize"]
@@ -22,6 +30,16 @@ ChemistryFailureType = Literal[
     "unsupported_polymer_notation",
 ]
 ChemistryProcessingStage = Literal["input", "parse", "standardization", "capping"]
+DatasetRow = Mapping[str, object]
+
+_MAX_FAILURE_EXAMPLES = 3
+_RECOMMENDED_ACTIONS: dict[ChemistryFailureType, str] = {
+    "missing_smiles": "Inspect source data for blank or missing SMILES values.",
+    "parse_error": "Inspect malformed SMILES and decide whether to repair or exclude.",
+    "standardization_error": "Review standardization settings for this molecule.",
+    "capping_error": "Review attachment points and the selected capping strategy.",
+    "unsupported_polymer_notation": "Review polymer repeat-unit notation before processing.",
+}
 
 
 class StandardizationConfig(ContractModel):
@@ -153,3 +171,153 @@ class ChemistryAuditArtifact(ContractModel):
             )
 
         return self
+
+
+def audit_dataset_rows(
+    rows: Sequence[DatasetRow],
+    dataset: DatasetConfig,
+    chemistry: ChemistryAuditConfig,
+    *,
+    split: str = "train",
+    rdkit_version: str = RDKIT_VERSION,
+) -> ChemistryAuditArtifact:
+    """Parse dataset-shaped rows into a fixture-sized chemistry audit artifact."""
+
+    records = tuple(
+        audit_dataset_row(row, dataset, row_index=index, split=split)
+        for index, row in enumerate(rows)
+    )
+    return ChemistryAuditArtifact(
+        dataset=dataset,
+        chemistry=chemistry,
+        rdkit_version=rdkit_version,
+        records=records,
+        summary=summarize_chemistry_records(records),
+    )
+
+
+def audit_dataset_row(
+    row: DatasetRow,
+    dataset: DatasetConfig,
+    *,
+    row_index: int,
+    split: str = "train",
+) -> ChemistryAuditRecord:
+    """Parse one dataset-shaped row into a chemistry audit record."""
+
+    sample_id = _sample_id_for_row(row, dataset, row_index=row_index, split=split)
+    raw_smiles = _raw_smiles_for_row(row, dataset)
+    if raw_smiles is None or raw_smiles.strip() == "":
+        return _failed_record(
+            sample_id=sample_id,
+            raw_smiles=raw_smiles,
+            failure_type="missing_smiles",
+            message=f"Missing source SMILES in column '{dataset.smiles_column}'.",
+            stage="input",
+        )
+
+    with rdBase.BlockLogs():
+        molecule = Chem.MolFromSmiles(raw_smiles)
+    if molecule is None:
+        return _failed_record(
+            sample_id=sample_id,
+            raw_smiles=raw_smiles,
+            failure_type="parse_error",
+            message="RDKit could not parse source SMILES.",
+            stage="parse",
+        )
+
+    canonical_smiles = Chem.MolToSmiles(molecule, canonical=True, isomericSmiles=True)
+    return ChemistryAuditRecord(
+        sample_id=sample_id,
+        raw_smiles=raw_smiles,
+        status="valid",
+        canonical_smiles=canonical_smiles,
+        attachment_points=_attachment_points(molecule),
+    )
+
+
+def summarize_chemistry_records(
+    records: Sequence[ChemistryAuditRecord],
+) -> ChemistryAuditSummary:
+    """Summarize audit records into aggregate counts and failure groups."""
+
+    valid_records = sum(record.status == "valid" for record in records)
+    failure_records = tuple(record for record in records if record.failure is not None)
+    grouped_failures: dict[ChemistryFailureType, list[ChemistryFailureRecord]] = {}
+    for record in failure_records:
+        assert record.failure is not None
+        grouped_failures.setdefault(record.failure.failure_type, []).append(record.failure)
+
+    return ChemistryAuditSummary(
+        total_records=len(records),
+        valid_records=valid_records,
+        failed_records=len(failure_records),
+        failure_groups=tuple(
+            ChemistryAuditFailureGroup(
+                failure_type=failure_type,
+                count=len(failures),
+                example_sample_ids=tuple(
+                    failure.sample_id for failure in failures[:_MAX_FAILURE_EXAMPLES]
+                ),
+                recommended_action=_RECOMMENDED_ACTIONS[failure_type],
+            )
+            for failure_type, failures in sorted(grouped_failures.items())
+        ),
+    )
+
+
+def _failed_record(
+    *,
+    sample_id: str,
+    raw_smiles: str | None,
+    failure_type: ChemistryFailureType,
+    message: str,
+    stage: ChemistryProcessingStage,
+) -> ChemistryAuditRecord:
+    failure = ChemistryFailureRecord(
+        sample_id=sample_id,
+        raw_smiles=raw_smiles,
+        failure_type=failure_type,
+        message=message,
+        stage=stage,
+    )
+    return ChemistryAuditRecord(
+        sample_id=sample_id,
+        raw_smiles=raw_smiles,
+        status="failed",
+        failure=failure,
+    )
+
+
+def _sample_id_for_row(
+    row: DatasetRow,
+    dataset: DatasetConfig,
+    *,
+    row_index: int,
+    split: str,
+) -> str:
+    if dataset.sample_id_column is None:
+        return f"{split}-{row_index}"
+
+    value = row.get(dataset.sample_id_column)
+    if _is_missing(value):
+        return f"{split}-{row_index}"
+    return str(value)
+
+
+def _raw_smiles_for_row(row: DatasetRow, dataset: DatasetConfig) -> str | None:
+    value = row.get(dataset.smiles_column)
+    if _is_missing(value):
+        return None
+    return value if isinstance(value, str) else str(value)
+
+
+def _is_missing(value: object) -> bool:
+    if value is None:
+        return True
+    return isinstance(value, float) and isnan(value)
+
+
+def _attachment_points(molecule: Any) -> tuple[str, ...]:
+    return tuple(f"*:{atom.GetIdx()}" for atom in molecule.GetAtoms() if atom.GetAtomicNum() == 0)

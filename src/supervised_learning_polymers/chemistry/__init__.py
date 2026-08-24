@@ -9,6 +9,9 @@ from supervised_learning_polymers.chemistry.audit import (
     ChemistryAuditSummary,
     ChemistryFailureRecord,
     StandardizationConfig,
+    audit_dataset_row,
+    audit_dataset_rows,
+    summarize_chemistry_records,
 )
 
 __all__ = [
@@ -20,4 +23,7 @@ __all__ = [
     "ChemistryAuditSummary",
     "ChemistryFailureRecord",
     "StandardizationConfig",
+    "audit_dataset_row",
+    "audit_dataset_rows",
+    "summarize_chemistry_records",
 ]
