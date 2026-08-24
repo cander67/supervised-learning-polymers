@@ -17,12 +17,12 @@ Status legend:
 | --- | --- | --- | --- | --- |
 | 1 | Accepted | [Benchmark Contract And Target Config](prds/01-benchmark-contract-and-target-config.md) | Typed target, dataset, manifest, and sequential leakage contract. | Closed out as the baseline contract for dataset, target, and manifest work. |
 | 2 | Accepted | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | Closed out with the GUI/backend path selected in [Public Interface Discovery Decision](interface-discovery-decision.md). |
+| 3 | Accepted | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | Closed out with the final review gate passing locally, including fixture tests, default tests, full-data audit, chemistry docs, and GUI/backend fixture alignment. |
 
 ## Current Work
 
-| Order | Status | PRD | Scope | Notes |
-| --- | --- | --- | --- | --- |
-| 3 | Ready for review | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | Final review gate passed locally with fixture tests, full default tests, an opt-in full-data audit, chemistry artifact docs, and GUI/backend fixture alignment. |
+No PRD is actively being implemented at this checkpoint. The next implementation slice should start
+from the planned backlog below.
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -32,12 +32,12 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 
 | Order | Status | PRD | Scope | Blocked by |
 | --- | --- | --- | --- | --- |
-| 4 | Planned | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | PRD 03 review acceptance |
-| 5 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | PRD 03 review acceptance |
-| 6 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | PRD 01 contract; PRD 03 review acceptance |
-| 7 | Planned | [First Reproducible Baseline Run](prds/07-first-reproducible-baseline-run.md) | Train cheap leakage-safe baselines with tracked configs, metrics, predictions, and artifacts. | PRDs 03, 05, and 06 |
+| 4 | Planned | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | None |
+| 5 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | None |
+| 6 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | None |
+| 7 | Planned | [First Reproducible Baseline Run](prds/07-first-reproducible-baseline-run.md) | Train cheap leakage-safe baselines with tracked configs, metrics, predictions, and artifacts. | PRDs 05 and 06 |
 | 8 | Planned | [Search Infrastructure](prds/08-search-infrastructure.md) | Add grid, random, and Bayesian search with trial persistence and resume behavior. | PRD 07 baseline path |
-| 9 | Planned | [2D Graph Representation And GNN Baseline](prds/09-2d-graph-representation-and-gnn-baseline.md) | Build 2D graph artifacts and one small GNN baseline. | PRDs 03, 06, and 07 |
+| 9 | Planned | [2D Graph Representation And GNN Baseline](prds/09-2d-graph-representation-and-gnn-baseline.md) | Build 2D graph artifacts and one small GNN baseline. | PRDs 06 and 07 |
 | 10 | Planned | [Geometry-Enabled Representation And Model Slice](prds/10-geometry-enabled-representation-and-model-slice.md) | Compare one geometry-aware representation/model against 2D and fixed-vector controls. | PRDs 04, 05, 06, and 07 |
 | 11 | Planned | [Deep Sequence And Transformer Extensions](prds/11-deep-sequence-and-transformer-extensions.md) | Add SMILES CNN and transformer experiments after core contracts and baselines are stable. | PRDs 06, 07, and 08 |
 | 12 | Planned | [Final Scientific Comparison](prds/12-final-scientific-comparison.md) | Produce leaderboards, statistical comparisons, applicability-domain analysis, and model cards. | Earlier model and artifact PRDs |
