@@ -8,6 +8,9 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 
 - [Project backlog](docs/backlog.md)
 - [Benchmark contract](docs/benchmark-contract.md)
+- [Interface discovery GUI backend](docs/interface-discovery-gui-backend.md)
+- [Public interface discovery decision](docs/interface-discovery-decision.md)
+- [Public interface discovery criteria](docs/interface-discovery-criteria.md)
 - [Target properties](docs/target-properties.md)
 
 ## License

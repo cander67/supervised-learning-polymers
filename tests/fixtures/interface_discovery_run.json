@@ -1,0 +1,306 @@
+{
+  "artifact_version": "1",
+  "manifest": {
+    "manifest_version": "1",
+    "dataset": {
+      "dataset_version": "open-polymer-train-fixture-v1",
+      "sample_id_column": "id",
+      "smiles_column": "SMILES",
+      "target_columns": [
+        "Tg",
+        "FFV",
+        "Tc",
+        "Density",
+        "Rg"
+      ],
+      "grouping_columns": [
+        "scaffold"
+      ]
+    },
+    "target": {
+      "targets": [
+        {
+          "name": "Tg",
+          "unit": "deg C"
+        },
+        {
+          "name": "FFV",
+          "unit": "dimensionless",
+          "valid_range": {
+            "minimum": 0.0,
+            "maximum": 1.0
+          }
+        },
+        {
+          "name": "Tc",
+          "unit": "W/(m*K)"
+        },
+        {
+          "name": "Density",
+          "unit": "g/cm^3"
+        },
+        {
+          "name": "Rg",
+          "unit": "Angstrom"
+        }
+      ],
+      "groups": {
+        "all": [
+          "Tg",
+          "FFV",
+          "Tc",
+          "Density",
+          "Rg"
+        ],
+        "sequential_poc": [
+          "FFV",
+          "Density",
+          "Tc",
+          "Tg",
+          "Rg"
+        ]
+      },
+      "mode": {
+        "mode": "sequential",
+        "order": [
+          "FFV",
+          "Density",
+          "Tc",
+          "Tg",
+          "Rg"
+        ],
+        "prediction_source": {
+          "training": "out_of_fold_predictions",
+          "validation": "upstream_model_predictions",
+          "test": "upstream_model_predictions"
+        }
+      }
+    },
+    "chemistry": {
+      "config_id": "chemistry-audit-fixture-v1"
+    },
+    "representation": {
+      "config_id": "morgan-fingerprint-fixture-v1"
+    },
+    "split": {
+      "config_id": "grouped-split-fixture-v1"
+    },
+    "model": {
+      "config_id": "ridge-baseline-fixture-v1"
+    },
+    "reporting": {
+      "config_id": "interface-report-fixture-v1"
+    }
+  },
+  "target_mode_summary": {
+    "mode": "sequential",
+    "selected_targets": [
+      "FFV",
+      "Density",
+      "Tc",
+      "Tg",
+      "Rg"
+    ],
+    "description": "Sequential proof-of-concept order using leakage-safe upstream predictions.",
+    "sequential_order": [
+      "FFV",
+      "Density",
+      "Tc",
+      "Tg",
+      "Rg"
+    ]
+  },
+  "chemistry_failure_summary": {
+    "total_records": 8,
+    "valid_records": 6,
+    "failed_records": 2,
+    "failure_groups": [
+      {
+        "failure_type": "parse_error",
+        "count": 1,
+        "example_sample_ids": [
+          "poly-0004"
+        ],
+        "recommended_action": "Inspect malformed SMILES and decide whether to repair or exclude."
+      },
+      {
+        "failure_type": "standardization_error",
+        "count": 1,
+        "example_sample_ids": [
+          "poly-0007"
+        ],
+        "recommended_action": "Review salts, capping policy, and polymer repeat-unit notation."
+      }
+    ]
+  },
+  "run_metadata": {
+    "run_id": "run-interface-discovery-fixture-001",
+    "display_name": "Sequential Ridge Baseline Fixture",
+    "status": "running",
+    "created_at": "2026-08-20T09:00:00-07:00",
+    "updated_at": "2026-08-20T09:03:00-07:00",
+    "progress_steps": [
+      {
+        "name": "Load manifest",
+        "status": "completed",
+        "completed_units": 1,
+        "total_units": 1
+      },
+      {
+        "name": "Chemistry audit",
+        "status": "completed",
+        "completed_units": 8,
+        "total_units": 8
+      },
+      {
+        "name": "Fit target chain",
+        "status": "running",
+        "completed_units": 3,
+        "total_units": 5
+      }
+    ],
+    "artifact_paths": {
+      "manifest": "artifacts/interface-discovery/run-interface-discovery-fixture-001/manifest.json",
+      "chemistry_summary": "artifacts/interface-discovery/run-interface-discovery-fixture-001/chemistry-summary.json",
+      "metrics": "artifacts/interface-discovery/run-interface-discovery-fixture-001/metrics.json"
+    }
+  },
+  "result_summary": {
+    "primary_metric": "weighted_mean_absolute_error",
+    "metrics": [
+      {
+        "target": "FFV",
+        "metric": "mean_absolute_error",
+        "value": 0.019,
+        "split": "validation",
+        "scope": "target"
+      },
+      {
+        "target": "Density",
+        "metric": "mean_absolute_error",
+        "value": 0.041,
+        "split": "validation",
+        "scope": "target"
+      },
+      {
+        "target": "Tc",
+        "metric": "mean_absolute_error",
+        "value": 0.086,
+        "split": "validation",
+        "scope": "target"
+      },
+      {
+        "target": "Tg",
+        "metric": "mean_absolute_error",
+        "value": 18.4,
+        "split": "validation",
+        "scope": "target"
+      },
+      {
+        "target": "Rg",
+        "metric": "mean_absolute_error",
+        "value": 2.7,
+        "split": "validation",
+        "scope": "target"
+      },
+      {
+        "target": null,
+        "metric": "weighted_mean_absolute_error",
+        "value": 0.084,
+        "split": "validation",
+        "scope": "aggregate"
+      },
+      {
+        "target": null,
+        "metric": "weighted_mean_absolute_error",
+        "value": 0.091,
+        "split": "public_leaderboard",
+        "scope": "aggregate"
+      }
+    ],
+    "leaderboard": [
+      {
+        "rank": 1,
+        "run_id": "run-interface-discovery-fixture-001",
+        "model_family": "ridge",
+        "primary_metric": "weighted_mean_absolute_error",
+        "primary_score": 0.084,
+        "target_mode": "sequential"
+      },
+      {
+        "rank": 2,
+        "run_id": "run-interface-discovery-fixture-000",
+        "model_family": "dummy_mean",
+        "primary_metric": "weighted_mean_absolute_error",
+        "primary_score": 0.127,
+        "target_mode": "all"
+      },
+      {
+        "rank": 1,
+        "run_id": "run-interface-discovery-fixture-001",
+        "model_family": "ridge",
+        "primary_metric": "mean_absolute_error",
+        "primary_score": 4.249,
+        "target_mode": "sequential"
+      },
+      {
+        "rank": 2,
+        "run_id": "run-interface-discovery-fixture-000",
+        "model_family": "dummy_mean",
+        "primary_metric": "mean_absolute_error",
+        "primary_score": 6.812,
+        "target_mode": "all"
+      }
+    ],
+    "notes": [
+      "Fixture scores are illustrative and should not be interpreted as scientific results.",
+      "Weighted-MAE values and target weights are persisted fixture metadata for interface discovery; production computation belongs in the evaluation layer.",
+      "Artifact shapes are intentionally tiny until full chemistry and baseline PRDs produce real outputs."
+    ],
+    "metric_metadata": [
+      {
+        "metric": "mean_absolute_error",
+        "display_name": "MAE",
+        "description": "Per-target mean absolute error persisted by the evaluation layer.",
+        "target_weights": []
+      },
+      {
+        "metric": "weighted_mean_absolute_error",
+        "display_name": "Open Polymer wMAE",
+        "description": "Competition weighted MAE persisted by the evaluation layer; weights correct for target scale and available-label imbalance.",
+        "target_weights": [
+          {
+            "target": "FFV",
+            "weight": 0.61,
+            "range": 0.55,
+            "label_count": 7030
+          },
+          {
+            "target": "Density",
+            "weight": 0.22,
+            "range": 1.09,
+            "label_count": 613
+          },
+          {
+            "target": "Tc",
+            "weight": 0.09,
+            "range": 0.48,
+            "label_count": 737
+          },
+          {
+            "target": "Tg",
+            "weight": 0.04,
+            "range": 620.28,
+            "label_count": 511
+          },
+          {
+            "target": "Rg",
+            "weight": 0.04,
+            "range": 24.95,
+            "label_count": 614
+          }
+        ]
+      }
+    ]
+  }
+}

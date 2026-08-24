@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Interface Discovery</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Interface Discovery</p>
+          <h1 id="run-title">Loading artifact</h1>
+        </div>
+        <div class="status-pill" id="run-status">Loading</div>
+      </header>
+
+      <section class="summary-grid">
+        <article>
+          <h2>Target Mode</h2>
+          <div id="target-mode"></div>
+        </article>
+        <article>
+          <h2>Provenance</h2>
+          <div id="provenance"></div>
+        </article>
+      </section>
+
+      <section>
+        <div class="section-header">
+          <h2>Chemistry Failures</h2>
+          <label>
+            Filter
+            <select id="failure-filter">
+              <option value="all">All failures</option>
+            </select>
+          </label>
+        </div>
+        <div id="chemistry-summary" class="counts"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Count</th>
+                <th>Examples</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="failure-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="summary-grid">
+        <article>
+          <h2>Run Progress</h2>
+          <div id="run-progress"></div>
+        </article>
+        <article>
+          <h2>Artifact Paths</h2>
+          <div id="artifact-paths"></div>
+        </article>
+      </section>
+
+      <section>
+        <div class="section-header">
+          <h2>Results</h2>
+          <label>
+            Metric
+            <select id="metric-filter">
+              <option value="all">All metrics</option>
+            </select>
+          </label>
+        </div>
+        <div id="metric-summary" class="metric-summary"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Target</th>
+                <th>Split</th>
+                <th>Metric</th>
+                <th>Scope</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody id="metric-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Leaderboard</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Run</th>
+                <th>Model</th>
+                <th>Target Mode</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

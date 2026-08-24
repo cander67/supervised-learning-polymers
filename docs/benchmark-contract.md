@@ -144,3 +144,26 @@ Later PRDs should depend on the contract as follows:
 
 Fixture-sized examples live in `tests/fixtures/benchmark_contract_cases.json` and are validated by
 the default pytest suite.
+
+## Interface Discovery Fixtures
+
+PRD 02's GUI/backend interface should read small committed artifact fixtures instead of inventing
+display data or duplicating benchmark rules. The initial fixture bundle lives in
+`tests/fixtures/interface_discovery_run.json` and validates through
+`load_interface_discovery_artifact`.
+
+The fixture bundle includes:
+
+- a `BenchmarkManifest` using the PRD 01 contract;
+- a display-ready target-mode summary;
+- a chemistry-failure summary shaped for triage before the full chemistry audit exists;
+- experiment metadata, run status, progress steps, and artifact paths;
+- result metrics, leaderboard rows, weighted-MAE metadata, and notes for review surfaces.
+
+The retained GUI/backend path is documented in
+[Interface Discovery GUI Backend](interface-discovery-gui-backend.md).
+
+The PRD 02 decision record selects the GUI/backend path and records weighted-MAE display/filtering as
+required follow-up before final review. The interface fixture records weighted-MAE values and
+weighting metadata as persisted artifact fields; benchmark metric computation remains an evaluation
+layer responsibility.

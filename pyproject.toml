@@ -58,6 +58,9 @@ dev = [
 Repository = "https://github.com/cander67/supervised-learning-polymers"
 Issues = "https://github.com/cander67/supervised-learning-polymers/issues"
 
+[project.scripts]
+slp-interface-gui = "supervised_learning_polymers.interface_backend:main"
+
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
