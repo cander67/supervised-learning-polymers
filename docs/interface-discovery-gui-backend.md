@@ -8,6 +8,10 @@ After user review, this is the selected first-interface direction for the projec
 should evolve into an organized artifact viewer and search tool as experiment, model, metric, and
 test artifacts grow in volume.
 
+PRD 13 extends this direction with a structure validation workbench. That page should remain
+artifact-driven and expose coordinated panels for SMILES, 2D depiction, 3D conformer review, and
+2D/3D graph rendering rather than duplicating chemistry or modeling logic inside the browser.
+
 Start the prototype with:
 
 ```bash
@@ -43,6 +47,9 @@ PRD 3 bundle under `artifacts/chemistry/<config-id>/`, including `records.json`,
 - **Future integration**: The prototype can point at later chemistry, split, model, and reporting
   artifacts if their JSON shapes remain compatible with `InterfaceDiscoveryArtifact` or an evolved
   successor contract.
+- **Structure review**: The GUI should eventually let chemistry-proficient users inspect every
+  SMILES-derived representation encountered in the project, including conformer attempts for
+  records used by non-geometry-aware models.
 - **Metric review**: The GUI should support filtering or toggling between ordinary MAE and the Open
   Polymer weighted-MAE competition metric once metric artifacts include both values and the
   associated weighting metadata. The Phase 7 prototype reads these metric values, target weights,

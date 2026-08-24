@@ -24,6 +24,8 @@ The GUI/backend prototype is the best fit because:
 
 - it supports reviewer-friendly filtering, including the chemistry-failure dropdown pattern;
 - it can evolve into an organized artifact viewer and search tool;
+- it can grow into the PRD 13 structure validation workbench for SMILES, 2D, 3D, and graph
+  representations;
 - it stays thin by reading persisted artifacts rather than owning benchmark rules;
 - it is more approachable than notebooks or CLI-only output for routine review;
 - it can still expose generated reports for archival or pull-request review.

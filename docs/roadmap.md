@@ -20,6 +20,9 @@ through config, data/model code, artifacts, tests, and docs.
 
 ## Roadmap
 
+The numeric list below is execution order. PRD identifiers remain stable even when a later PRD is
+pulled forward because it becomes useful earlier than originally planned.
+
 1. **Benchmark Contract And Target Config**
    Define observations, target modes, sequential prediction semantics, sample identity, manifests,
    and validation rules.
@@ -34,31 +37,39 @@ through config, data/model code, artifacts, tests, and docs.
 
 4. **Early 3D Geometry Groundwork**
    Generate conformer feasibility artifacts early so 3D coverage, cost, and failure modes are known
-   before geometry-aware models depend on them.
+   before geometry-aware models depend on them. Persist viewer-ready conformer artifacts for every
+   valid SMILES where possible, with structured failures where geometry cannot be generated.
 
-5. **Fixed-Vector Representations**
+5. **Structure Viewer And Validation Workbench** (`PRD 13`)
+   Add the GUI structure page as soon as PRD 04 produces useful conformer artifacts. Start with
+   SMILES, 2D depiction, and 3D conformer/failure panels, then complete 2D/3D graph rendering as PRD
+   09 graph artifacts mature.
+
+6. **Fixed-Vector Representations**
    Build versioned descriptor and fingerprint features from validated chemistry records.
 
-6. **Frozen Splits And Leakage Checks**
+7. **Frozen Splits And Leakage Checks**
    Create reproducible random, grouped, and structure-aware split artifacts with leakage tests.
 
-7. **First Reproducible Baseline Run**
+8. **First Reproducible Baseline Run**
    Train cheap leakage-safe regressors from raw inputs through persisted metrics and predictions.
 
-8. **Search Infrastructure**
+9. **Search Infrastructure**
    Wire grid, random, and Bayesian search through tracked, resumable `mlbag` runs.
 
-9. **2D Graph Representation And GNN Baseline**
+10. **2D Graph Representation And GNN Baseline**
    Build 2D graph artifacts and train the smallest useful graph model against fixed-vector controls.
+   Keep graph artifacts renderable in both 2D and 3D viewer contexts and use PRD 13 as the visual
+   validation surface.
 
-10. **Geometry-Enabled Representation And Model Slice**
+11. **Geometry-Enabled Representation And Model Slice**
     Compare one geometry-aware representation/model against equivalent 2D and fixed-vector controls.
 
-11. **Deep Sequence And Transformer Extensions**
+12. **Deep Sequence And Transformer Extensions**
     Add SMILES CNN and transformer experiments only after target, split, and baseline semantics are
     stable.
 
-12. **Final Scientific Comparison**
+13. **Final Scientific Comparison**
     Produce final leaderboards, statistical comparisons, applicability-domain analysis, and model
     cards.
 
@@ -68,6 +79,8 @@ through config, data/model code, artifacts, tests, and docs.
   full-training-set chemistry audit.
 - Active PRD: none at this checkpoint.
 - Next planned PRD: `docs/prds/04-early-3d-geometry-groundwork.md`
+- Next interface PRD after geometry groundwork:
+  `docs/prds/13-structure-viewer-and-validation-workbench.md`
 - Chemistry audit docs: `docs/chemistry-audit.md`
 - Interface alignment docs: `docs/interface-discovery-gui-backend.md`
 - Review status: PRD 03 has been accepted after the final review gate passed locally with the

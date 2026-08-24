@@ -2,7 +2,8 @@
 
 This backlog tracks the current and planned PRDs for the polymer property benchmark. The roadmap
 describes the durable sequence; this file is the review surface for status, dependencies, and next
-actions.
+actions. The `Order` column is execution order and may differ from the PRD number when a later PRD is
+pulled forward.
 
 Status legend:
 
@@ -33,14 +34,15 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 | Order | Status | PRD | Scope | Blocked by |
 | --- | --- | --- | --- | --- |
 | 4 | Planned | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | None |
-| 5 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | None |
-| 6 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | None |
-| 7 | Planned | [First Reproducible Baseline Run](prds/07-first-reproducible-baseline-run.md) | Train cheap leakage-safe baselines with tracked configs, metrics, predictions, and artifacts. | PRDs 05 and 06 |
-| 8 | Planned | [Search Infrastructure](prds/08-search-infrastructure.md) | Add grid, random, and Bayesian search with trial persistence and resume behavior. | PRD 07 baseline path |
-| 9 | Planned | [2D Graph Representation And GNN Baseline](prds/09-2d-graph-representation-and-gnn-baseline.md) | Build 2D graph artifacts and one small GNN baseline. | PRDs 06 and 07 |
-| 10 | Planned | [Geometry-Enabled Representation And Model Slice](prds/10-geometry-enabled-representation-and-model-slice.md) | Compare one geometry-aware representation/model against 2D and fixed-vector controls. | PRDs 04, 05, 06, and 07 |
-| 11 | Planned | [Deep Sequence And Transformer Extensions](prds/11-deep-sequence-and-transformer-extensions.md) | Add SMILES CNN and transformer experiments after core contracts and baselines are stable. | PRDs 06, 07, and 08 |
-| 12 | Planned | [Final Scientific Comparison](prds/12-final-scientific-comparison.md) | Produce leaderboards, statistical comparisons, applicability-domain analysis, and model cards. | Earlier model and artifact PRDs |
+| 5 | Planned | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | PRD 04 for the first useful SMILES/2D/3D slice; PRD 09 for complete graph artifacts |
+| 6 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | None |
+| 7 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | None |
+| 8 | Planned | [First Reproducible Baseline Run](prds/07-first-reproducible-baseline-run.md) | Train cheap leakage-safe baselines with tracked configs, metrics, predictions, and artifacts. | PRDs 05 and 06 |
+| 9 | Planned | [Search Infrastructure](prds/08-search-infrastructure.md) | Add grid, random, and Bayesian search with trial persistence and resume behavior. | PRD 07 baseline path |
+| 10 | Planned | [2D Graph Representation And GNN Baseline](prds/09-2d-graph-representation-and-gnn-baseline.md) | Build 2D/3D-renderable graph artifacts and one small GNN baseline. | PRDs 06 and 07; extends PRD 13 graph panel |
+| 11 | Planned | [Geometry-Enabled Representation And Model Slice](prds/10-geometry-enabled-representation-and-model-slice.md) | Compare one geometry-aware representation/model against 2D and fixed-vector controls. | PRDs 04, 05, 06, 07, and PRD 13 diagnostics links |
+| 12 | Planned | [Deep Sequence And Transformer Extensions](prds/11-deep-sequence-and-transformer-extensions.md) | Add SMILES CNN and transformer experiments after core contracts and baselines are stable. | PRDs 06, 07, and 08 |
+| 13 | Planned | [Final Scientific Comparison](prds/12-final-scientific-comparison.md) | Produce leaderboards, statistical comparisons, applicability-domain analysis, and model cards. | Earlier model and artifact PRDs |
 
 ## Review Notes
 
@@ -51,3 +53,5 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
   depend on exists.
 - Update this backlog when a PRD enters implementation, reaches review, or is split into smaller
   PRDs.
+- Pull the structure viewer forward after PRD 04 so chemistry and geometry artifacts can be visually
+  validated before fixed-vector, split, and model runs make those artifacts harder to debug.

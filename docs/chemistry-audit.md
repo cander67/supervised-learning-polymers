@@ -23,6 +23,10 @@ Aggregate summaries store total, valid, and failed counts plus grouped failure c
 sample IDs. The same summary contract feeds both persisted chemistry artifacts and the GUI/backend
 interface fixture.
 
+PRD 13 will add a structure validation workbench on top of these records. The chemistry audit
+remains the provenance source for raw, canonical, standardized, capped SMILES, and attachment-point
+metadata; geometry and graph PRDs add the viewer-ready 3D and graph artifacts consumed by that page.
+
 ## SMILES Provenance
 
 Source SMILES are immutable audit inputs. The audit never overwrites `raw_smiles`; every derived

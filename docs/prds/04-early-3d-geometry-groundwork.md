@@ -21,6 +21,9 @@ creates the foundation for later 3D representations and geometric models.
 4. As a modeler, I want optional fallback methods represented in config, so that xTB or MLIP paths
    can be enabled when available.
 5. As a modeler, I want coverage and runtime summaries, so that model comparisons account for cost.
+6. As a chemistry-proficient reviewer, I want every successful SMILES audit record to have a
+   viewer-ready 3D attempt or structured 3D failure, so that the GUI can show what non-geometry-aware
+   models ignored.
 
 ## Implementation Decisions
 
@@ -28,6 +31,14 @@ creates the foundation for later 3D representations and geometric models.
 - Represent xTB and MLIP fallbacks in config and provenance even if they are skipped locally.
 - Keep geometry feasibility independent from graph model training.
 - Do not let geometry failures block non-geometry features.
+- Attempt 3D conformer generation for every valid capped SMILES record, including records that will
+  later feed 2D or fixed-vector models, so that structure review can compare model inputs against
+  available geometry.
+- Persist viewer-ready conformer data as RDKit MolBlock or SDF text with stable sample identity,
+  source/canonical/standardized/capped SMILES provenance, conformer method, status, runtime, and
+  fallback metadata.
+- Preserve atom-index mapping metadata where feasible so later 2D depictions, 3D conformers, and
+  graph representations can be cross-highlighted in the GUI.
 
 ## Testing Decisions
 
@@ -40,6 +51,7 @@ creates the foundation for later 3D representations and geometric models.
 - Training a geometric GNN.
 - Multiple-conformer ensemble modeling.
 - Installing external quantum chemistry tools by default.
+- Building the structure viewer GUI page; PRD 13 consumes the artifacts produced here.
 
 ## Further Notes
 
