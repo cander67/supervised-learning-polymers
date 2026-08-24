@@ -11,6 +11,8 @@ from supervised_learning_polymers.chemistry.audit import (
     StandardizationConfig,
     audit_dataset_row,
     audit_dataset_rows,
+    chemistry_cache_key,
+    standardize_molecule,
     summarize_chemistry_records,
 )
 
@@ -25,5 +27,7 @@ __all__ = [
     "StandardizationConfig",
     "audit_dataset_row",
     "audit_dataset_rows",
+    "chemistry_cache_key",
+    "standardize_molecule",
     "summarize_chemistry_records",
 ]

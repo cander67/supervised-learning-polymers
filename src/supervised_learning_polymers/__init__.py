@@ -9,6 +9,8 @@ from supervised_learning_polymers.chemistry import (
     StandardizationConfig,
     audit_dataset_row,
     audit_dataset_rows,
+    chemistry_cache_key,
+    standardize_molecule,
     summarize_chemistry_records,
 )
 from supervised_learning_polymers.interface_backend import create_interface_discovery_server
@@ -80,8 +82,10 @@ __all__ = [
     "ValidRange",
     "audit_dataset_row",
     "audit_dataset_rows",
+    "chemistry_cache_key",
     "create_interface_discovery_server",
     "load_interface_discovery_artifact",
     "open_polymer_target_config",
+    "standardize_molecule",
     "summarize_chemistry_records",
 ]

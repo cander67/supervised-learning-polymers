@@ -1,7 +1,9 @@
 """Typed chemistry audit contracts for polymer source data."""
 
 from collections.abc import Mapping, Sequence
+from hashlib import sha256
 from importlib import import_module
+from json import dumps
 from math import isnan
 from typing import Any, Literal
 
@@ -12,6 +14,7 @@ from supervised_learning_polymers.targets import ContractModel
 
 _rdkit: Any = import_module("rdkit")
 Chem: Any = import_module("rdkit.Chem")
+rdMolStandardize: Any = import_module("rdkit.Chem.MolStandardize.rdMolStandardize")
 rdBase: Any = import_module("rdkit.rdBase")
 RDKIT_VERSION = str(_rdkit.__version__)
 
@@ -184,7 +187,7 @@ def audit_dataset_rows(
     """Parse dataset-shaped rows into a fixture-sized chemistry audit artifact."""
 
     records = tuple(
-        audit_dataset_row(row, dataset, row_index=index, split=split)
+        audit_dataset_row(row, dataset, row_index=index, split=split, chemistry=chemistry)
         for index, row in enumerate(rows)
     )
     return ChemistryAuditArtifact(
@@ -202,9 +205,11 @@ def audit_dataset_row(
     *,
     row_index: int,
     split: str = "train",
+    chemistry: ChemistryAuditConfig | None = None,
 ) -> ChemistryAuditRecord:
     """Parse one dataset-shaped row into a chemistry audit record."""
 
+    chemistry = chemistry or ChemistryAuditConfig(config_id="chemistry-default-v1")
     sample_id = _sample_id_for_row(row, dataset, row_index=row_index, split=split)
     raw_smiles = _raw_smiles_for_row(row, dataset)
     if raw_smiles is None or raw_smiles.strip() == "":
@@ -228,13 +233,62 @@ def audit_dataset_row(
         )
 
     canonical_smiles = Chem.MolToSmiles(molecule, canonical=True, isomericSmiles=True)
+    try:
+        standardized_molecule = standardize_molecule(molecule, chemistry.standardization)
+        standardized_smiles = Chem.MolToSmiles(
+            standardized_molecule, canonical=True, isomericSmiles=True
+        )
+    except Exception as error:
+        return _failed_record(
+            sample_id=sample_id,
+            raw_smiles=raw_smiles,
+            failure_type="standardization_error",
+            message=f"RDKit standardization failed: {error}",
+            stage="standardization",
+        )
+
     return ChemistryAuditRecord(
         sample_id=sample_id,
         raw_smiles=raw_smiles,
         status="valid",
         canonical_smiles=canonical_smiles,
+        standardized_smiles=standardized_smiles,
         attachment_points=_attachment_points(molecule),
     )
+
+
+def standardize_molecule(molecule: Any, config: StandardizationConfig) -> Any:
+    """Apply configured RDKit standardization choices to a molecule copy."""
+
+    standardized = Chem.Mol(molecule)
+    if config.fragment_policy == "largest_fragment":
+        standardized = rdMolStandardize.LargestFragmentChooser().choose(standardized)
+    if config.charge_policy == "neutralize":
+        standardized = rdMolStandardize.Uncharger().uncharge(standardized)
+    if config.tautomer_policy == "canonicalize":
+        standardized = rdMolStandardize.TautomerEnumerator().Canonicalize(standardized)
+    if config.stereochemistry_policy == "drop":
+        Chem.RemoveStereochemistry(standardized)
+    if config.isotope_policy == "drop":
+        standardized = _drop_isotopes(standardized)
+    return standardized
+
+
+def chemistry_cache_key(
+    dataset: DatasetConfig,
+    chemistry: ChemistryAuditConfig,
+    *,
+    rdkit_version: str = RDKIT_VERSION,
+) -> str:
+    """Return a deterministic cache key for chemistry audit settings."""
+
+    payload = {
+        "dataset": dataset.model_dump(mode="json"),
+        "chemistry": chemistry.model_dump(mode="json"),
+        "rdkit_version": rdkit_version,
+    }
+    serialized = dumps(payload, sort_keys=True, separators=(",", ":"))
+    return sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def summarize_chemistry_records(
@@ -317,6 +371,13 @@ def _is_missing(value: object) -> bool:
     if value is None:
         return True
     return isinstance(value, float) and isnan(value)
+
+
+def _drop_isotopes(molecule: Any) -> Any:
+    standardized = Chem.RWMol(molecule)
+    for atom in standardized.GetAtoms():
+        atom.SetIsotope(0)
+    return standardized.GetMol()
 
 
 def _attachment_points(molecule: Any) -> tuple[str, ...]:
