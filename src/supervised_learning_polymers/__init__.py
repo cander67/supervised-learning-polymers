@@ -1,3 +1,13 @@
+from supervised_learning_polymers.chemistry import (
+    CappingConfig,
+    ChemistryAuditArtifact,
+    ChemistryAuditConfig,
+    ChemistryAuditFailureGroup,
+    ChemistryAuditRecord,
+    ChemistryAuditSummary,
+    ChemistryFailureRecord,
+    StandardizationConfig,
+)
 from supervised_learning_polymers.interface_backend import create_interface_discovery_server
 from supervised_learning_polymers.interface_discovery import (
     ChemistryFailureGroup,
@@ -35,7 +45,14 @@ from supervised_learning_polymers.targets import (
 __all__ = [
     "AllTargetMode",
     "BenchmarkManifest",
+    "CappingConfig",
+    "ChemistryAuditArtifact",
+    "ChemistryAuditConfig",
+    "ChemistryAuditFailureGroup",
+    "ChemistryAuditRecord",
+    "ChemistryAuditSummary",
     "ChemistryFailureGroup",
+    "ChemistryFailureRecord",
     "ChemistryFailureSummary",
     "ConfigReference",
     "DatasetConfig",
@@ -53,6 +70,7 @@ __all__ = [
     "SequentialPredictionSource",
     "SequentialTargetMode",
     "SingleTargetMode",
+    "StandardizationConfig",
     "TargetConfig",
     "TargetMetadata",
     "TargetModeSummary",
