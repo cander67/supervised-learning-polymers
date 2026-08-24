@@ -161,9 +161,11 @@ contract through `chemistry_failure_summary` and artifact-path metadata.
 ## Deferred Chemistry Choices
 
 The first full-data uncapped control run on 2026-08-24 processed all 7,973 rows in
-`data/train/train.csv` with 7,973 valid records and 0 failures. The generated artifacts were written
-to `/tmp/slp-prd3-phase6-artifacts/chemistry/chemistry-audit-v1/` for local inspection and were not
-committed.
+`data/train/train.csv` with 7,973 valid records and 0 failures. The PRD 3 final-review run repeated
+that result with RDKit `2026.03.3`, cache key
+`4c3ed4fa21a257d9f28e4263c271d9b799ba2e9a277fa1f9183987670b352e10`, and generated artifacts under
+`/tmp/slp-prd3-final-review-artifacts/chemistry/chemistry-audit-v1/`. Generated audit artifacts are
+local review outputs and are not committed.
 
 Hydrogen and carbon capping remain available fixture-tested strategies, but `uncapped` stays the
 default until real wildcard-heavy polymer examples justify a different default. Carbon capping in

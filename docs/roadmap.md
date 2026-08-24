@@ -66,7 +66,8 @@ through config, data/model code, artifacts, tests, and docs.
 
 - Active PRD: `docs/prds/03-full-training-set-chemistry-audit.md`
 - Active ignored plan: `.plans/implementation/03-full-training-set-chemistry-audit-plan.md`
+- Accepted PRDs: PRD 01 benchmark contract and PRD 02 public interface discovery.
 - Chemistry audit docs: `docs/chemistry-audit.md`
 - Interface alignment docs: `docs/interface-discovery-gui-backend.md`
-- Review status: ready for PRD 03 review with the chemistry audit contract, artifacts, opt-in
-  full-data script, and GUI/backend summary fixture in place.
+- Review status: PRD 03 final review gate passed locally with the chemistry audit contract,
+  artifacts, opt-in full-data script, and GUI/backend summary fixture in place.

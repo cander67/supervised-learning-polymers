@@ -6,17 +6,23 @@ actions.
 
 Status legend:
 
+- **Accepted**: PRD-level review has closed out and the work is available as project baseline.
 - **Ready for review**: implemented locally and ready for PRD-level review.
 - **Planned**: PRD exists, but implementation has not started.
 - **Blocked by**: should wait for named earlier backlog items.
+
+## Accepted Work
+
+| Order | Status | PRD | Scope | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | Accepted | [Benchmark Contract And Target Config](prds/01-benchmark-contract-and-target-config.md) | Typed target, dataset, manifest, and sequential leakage contract. | Closed out as the baseline contract for dataset, target, and manifest work. |
+| 2 | Accepted | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | Closed out with the GUI/backend path selected in [Public Interface Discovery Decision](interface-discovery-decision.md). |
 
 ## Current Work
 
 | Order | Status | PRD | Scope | Notes |
 | --- | --- | --- | --- | --- |
-| 1 | Ready for review | [Benchmark Contract And Target Config](prds/01-benchmark-contract-and-target-config.md) | Typed target, dataset, manifest, and sequential leakage contract. | Implemented with fixture-sized behavior tests and docs. |
-| 2 | Ready for review | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | GUI/backend selected in [Public Interface Discovery Decision](interface-discovery-decision.md); branch retains only the GUI/backend survivor path. |
-| 3 | Ready for review | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | Implemented with fixture-sized behavior tests, an opt-in full-data script, chemistry artifact docs, and GUI/backend fixture alignment. |
+| 3 | Ready for review | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | Final review gate passed locally with fixture tests, full default tests, an opt-in full-data audit, chemistry artifact docs, and GUI/backend fixture alignment. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
