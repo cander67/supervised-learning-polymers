@@ -164,3 +164,6 @@ The first generated-report and GUI paths are documented in
 [Interface Discovery CLI Report](interface-discovery-cli-report.md),
 [Interface Discovery Notebook Report](interface-discovery-notebook-report.md), and
 [Interface Discovery GUI Backend](interface-discovery-gui-backend.md).
+
+The PRD 02 decision record selects the GUI/backend path and records weighted-MAE display/filtering as
+required follow-up before final review.

@@ -67,3 +67,4 @@ through config, data/model code, artifacts, tests, and docs.
 - Active PRD: `docs/prds/02-public-interface-discovery.md`
 - Active ignored plan: `.plans/implementation/02-public-interface-discovery-plan.md`
 - Discovery criteria: `docs/interface-discovery-criteria.md`
+- Discovery decision: `docs/interface-discovery-decision.md`

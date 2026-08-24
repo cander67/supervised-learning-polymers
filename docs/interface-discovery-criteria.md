@@ -37,6 +37,7 @@ record implementation complexity, risks, and what prototype code is worth keepin
 | Run progress visibility | Can it show run status, step progress, warnings, failures, and artifact locations in a way that supports repeated monitoring? |
 | Leaderboard review | Can it compare completed runs by target, metric, split, model family, and artifact identity without hiding missing or failed results? |
 | Model comparison | Can it support side-by-side model interpretation, tradeoffs, applicability notes, and future model-card links? |
+| Metric filtering | Can it toggle or filter ordinary MAE and Open Polymer weighted MAE while preserving which metric produced each leaderboard rank? |
 | Thin artifact-driven boundary | Does the interface stay thin by consuming artifacts and shared config contracts rather than owning chemistry, split, model, target-mode, or reporting logic? |
 | Non-notebook and non-CLI usability | Is it usable by reviewers and collaborators who are not comfortable editing notebooks or reading CLI-only output? |
 | Maintenance and extensibility | Can it evolve as later PRDs add chemistry audits, split artifacts, baseline runs, search, graph models, geometry, and final scientific comparisons? |
