@@ -38,15 +38,6 @@ def test_backend_serves_artifact_backed_json_endpoint() -> None:
     )
 
 
-def test_backend_serves_shared_markdown_report_endpoint() -> None:
-    with running_server() as base_url:
-        report = fetch_text(f"{base_url}/api/report")
-
-    assert "## Target Mode" in report
-    assert "## Chemistry Failures" in report
-    assert "## Leaderboard" in report
-
-
 def test_backend_serves_static_gui_assets() -> None:
     with running_server() as base_url:
         index = fetch_text(f"{base_url}/")

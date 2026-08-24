@@ -147,7 +147,7 @@ the default pytest suite.
 
 ## Interface Discovery Fixtures
 
-PRD 02 discovery prototypes should read small committed artifact fixtures instead of inventing
+PRD 02's GUI/backend interface should read small committed artifact fixtures instead of inventing
 display data or duplicating benchmark rules. The initial fixture bundle lives in
 `tests/fixtures/interface_discovery_run.json` and validates through
 `load_interface_discovery_artifact`.
@@ -158,11 +158,9 @@ The fixture bundle includes:
 - a display-ready target-mode summary;
 - a chemistry-failure summary shaped for triage before the full chemistry audit exists;
 - experiment metadata, run status, progress steps, and artifact paths;
-- result metrics, leaderboard rows, and notes for review surfaces.
+- result metrics, leaderboard rows, weighted-MAE metadata, and notes for review surfaces.
 
-The first generated-report and GUI paths are documented in
-[Interface Discovery CLI Report](interface-discovery-cli-report.md),
-[Interface Discovery Notebook Report](interface-discovery-notebook-report.md), and
+The retained GUI/backend path is documented in
 [Interface Discovery GUI Backend](interface-discovery-gui-backend.md).
 
 The PRD 02 decision record selects the GUI/backend path and records weighted-MAE display/filtering as

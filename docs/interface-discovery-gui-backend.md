@@ -1,8 +1,8 @@
 # Interface Discovery GUI Backend
 
-Phase 5 adds a thin local backend plus static GUI prototype for PRD 02 discovery. It serves the same
-committed fixture artifact used by the CLI and notebook reports, then lets reviewers inspect target
-mode, provenance, chemistry failures, run progress, metrics, and leaderboard data in a browser.
+Phase 5 adds a thin local backend plus static GUI prototype for PRD 02 discovery. It serves the
+committed fixture artifact, then lets reviewers inspect target mode, provenance, chemistry failures,
+run progress, metrics, and leaderboard data in a browser.
 
 After user review, this is the selected first-interface direction for the project. The GUI/backend
 should evolve into an organized artifact viewer and search tool as experiment, model, metric, and
@@ -20,7 +20,6 @@ Backend endpoints:
 
 - `GET /api/health`: server health check.
 - `GET /api/artifact`: validated `InterfaceDiscoveryArtifact` JSON.
-- `GET /api/report`: Markdown report rendered by the shared CLI/report path.
 - `GET /`, `/app.js`, `/styles.css`: static GUI assets.
 
 ## Tradeoffs

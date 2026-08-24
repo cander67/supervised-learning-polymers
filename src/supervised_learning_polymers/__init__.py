@@ -13,14 +13,6 @@ from supervised_learning_polymers.interface_discovery import (
     TargetModeSummary,
     load_interface_discovery_artifact,
 )
-from supervised_learning_polymers.interface_notebook import (
-    build_interface_discovery_notebook,
-    write_interface_discovery_notebook,
-)
-from supervised_learning_polymers.interface_report import (
-    render_interface_discovery_report,
-    write_interface_discovery_report,
-)
 from supervised_learning_polymers.manifest import (
     BenchmarkManifest,
     ConfigReference,
@@ -65,11 +57,7 @@ __all__ = [
     "TargetMetadata",
     "TargetModeSummary",
     "ValidRange",
-    "build_interface_discovery_notebook",
     "create_interface_discovery_server",
     "load_interface_discovery_artifact",
     "open_polymer_target_config",
-    "render_interface_discovery_report",
-    "write_interface_discovery_notebook",
-    "write_interface_discovery_report",
 ]

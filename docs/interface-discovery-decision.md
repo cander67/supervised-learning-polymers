@@ -28,9 +28,9 @@ The GUI/backend prototype is the best fit because:
 - it is more approachable than notebooks or CLI-only output for routine review;
 - it can still expose generated reports for archival or pull-request review.
 
-Notebook and CLI reports remain useful companion artifacts, especially for reproducible review and
-developer workflows. They should not be the primary public interface unless later evidence shows the
-GUI path is too costly to maintain.
+Notebook and CLI reports were useful discovery prototypes, especially for reproducible review and
+developer workflows, but they are not part of the merge target for this PRD. Keep their lessons as
+historical branch commits rather than carrying the code forward.
 
 ## Metric Requirement
 
@@ -59,9 +59,18 @@ References:
 
 ## Survivor Code
 
-Keep the Phase 5 GUI/backend prototype as the survivor path for PRD 02 review. Keep CLI and notebook
-report generation as companion outputs while they remain thin wrappers over the same artifact
-contract.
+Keep the Phase 5 GUI/backend prototype as the survivor path for PRD 02 review.
 
 Phase 7 adds fixture and GUI support for weighted-MAE display/filtering so the selected interface
 direction reflects the actual benchmark metric before final review.
+
+## Discarded Prototype Record
+
+To avoid bloating the main codebase, discarded prototype code is not part of the merge target. The
+useful history remains available on the `interface-discovery` branch:
+
+- CLI/generated report prototype: `ba55c23 Add interface discovery CLI report`
+- Notebook-backed report prototype: `5118b3c Add interface discovery notebook report`
+
+If either path becomes useful later, recover it from those commits and reintroduce only the pieces
+that still fit the retained GUI/backend artifact contract.

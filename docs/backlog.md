@@ -15,7 +15,7 @@ Status legend:
 | Order | Status | PRD | Scope | Notes |
 | --- | --- | --- | --- | --- |
 | 1 | Ready for review | [Benchmark Contract And Target Config](prds/01-benchmark-contract-and-target-config.md) | Typed target, dataset, manifest, and sequential leakage contract. | Implemented with fixture-sized behavior tests and docs. |
-| 2 | Active | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | GUI/backend selected in [Public Interface Discovery Decision](interface-discovery-decision.md); weighted-MAE filtering remains before final review. |
+| 2 | Ready for review | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | GUI/backend selected in [Public Interface Discovery Decision](interface-discovery-decision.md); branch retains only the GUI/backend survivor path. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in

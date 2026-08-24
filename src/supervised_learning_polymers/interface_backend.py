@@ -13,7 +13,6 @@ from supervised_learning_polymers.interface_discovery import (
     InterfaceDiscoveryArtifact,
     load_interface_discovery_artifact,
 )
-from supervised_learning_polymers.interface_report import render_interface_discovery_report
 
 STATIC_DIR = Path(__file__).parent / "static" / "interface_gui"
 
@@ -38,7 +37,7 @@ def create_interface_discovery_server(
 
 
 class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
-    """Serve static GUI assets and artifact-backed JSON/Markdown endpoints."""
+    """Serve static GUI assets and artifact-backed JSON endpoints."""
 
     server: InterfaceDiscoveryServer
 
@@ -48,10 +47,6 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"status": "ok"})
         elif route == "/api/artifact":
             self._send_json(self.server.artifact.model_dump(mode="json"))
-        elif route == "/api/report":
-            self._send_text(
-                render_interface_discovery_report(self.server.artifact), "text/markdown"
-            )
         elif route in {"/", "/index.html"}:
             self._send_static_file("index.html")
         elif route in {"/app.js", "/styles.css"}:
