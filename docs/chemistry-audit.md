@@ -46,3 +46,19 @@ Chemistry cache keys include:
 - RDKit version.
 
 This keeps standardization experiments from silently reusing stale chemistry artifacts.
+
+## Artifact Layout
+
+Persisted audit bundles are written under:
+
+```text
+artifacts/chemistry/<config-id>/
+```
+
+Each bundle contains:
+
+- `records.json`: all per-sample audit records.
+- `failures.json`: failure records only, for triage.
+- `summary.json`: total, valid, failed, and failure-group counts for review surfaces.
+- `metadata.json`: dataset version, chemistry config ID, RDKit version, settings, cache key,
+  creation timestamp, and output paths.

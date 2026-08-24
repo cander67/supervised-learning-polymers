@@ -1,10 +1,12 @@
 """Typed chemistry audit contracts for polymer source data."""
 
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from hashlib import sha256
 from importlib import import_module
 from json import dumps
 from math import isnan
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import Field, model_validator
@@ -176,6 +178,29 @@ class ChemistryAuditArtifact(ContractModel):
         return self
 
 
+class ChemistryAuditArtifactPaths(ContractModel):
+    """Paths written for one persisted chemistry audit artifact bundle."""
+
+    artifact_root: str = Field(min_length=1)
+    records: str = Field(min_length=1)
+    failures: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+    metadata: str = Field(min_length=1)
+
+
+class ChemistryAuditOutputMetadata(ContractModel):
+    """Metadata persisted alongside chemistry audit records and summaries."""
+
+    artifact_version: str = Field(min_length=1)
+    dataset_version: str = Field(min_length=1)
+    chemistry_config_id: str = Field(min_length=1)
+    rdkit_version: str = Field(min_length=1)
+    cache_key: str = Field(min_length=1)
+    created_at: str = Field(min_length=1)
+    settings: ChemistryAuditConfig
+    output_paths: ChemistryAuditArtifactPaths
+
+
 def audit_dataset_rows(
     rows: Sequence[DatasetRow],
     dataset: DatasetConfig,
@@ -197,6 +222,61 @@ def audit_dataset_rows(
         records=records,
         summary=summarize_chemistry_records(records),
     )
+
+
+def write_chemistry_audit_artifacts(
+    artifact: ChemistryAuditArtifact,
+    artifact_root: str | Path,
+    *,
+    created_at: str | None = None,
+) -> ChemistryAuditArtifactPaths:
+    """Persist chemistry audit records, failures, summary, and metadata."""
+
+    output_dir = chemistry_artifact_dir(artifact_root, artifact.chemistry)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    paths = ChemistryAuditArtifactPaths(
+        artifact_root=str(output_dir),
+        records=str(output_dir / "records.json"),
+        failures=str(output_dir / "failures.json"),
+        summary=str(output_dir / "summary.json"),
+        metadata=str(output_dir / "metadata.json"),
+    )
+    metadata = ChemistryAuditOutputMetadata(
+        artifact_version=artifact.artifact_version,
+        dataset_version=artifact.dataset.dataset_version,
+        chemistry_config_id=artifact.chemistry.config_id,
+        rdkit_version=artifact.rdkit_version,
+        cache_key=chemistry_cache_key(
+            artifact.dataset,
+            artifact.chemistry,
+            rdkit_version=artifact.rdkit_version,
+        ),
+        created_at=created_at or datetime.now(UTC).isoformat(),
+        settings=artifact.chemistry,
+        output_paths=paths,
+    )
+
+    _write_json(
+        Path(paths.records), [record.model_dump(mode="json") for record in artifact.records]
+    )
+    _write_json(
+        Path(paths.failures),
+        [
+            record.failure.model_dump(mode="json")
+            for record in artifact.records
+            if record.failure is not None
+        ],
+    )
+    _write_json(Path(paths.summary), artifact.summary.model_dump(mode="json"))
+    _write_json(Path(paths.metadata), metadata.model_dump(mode="json"))
+    return paths
+
+
+def chemistry_artifact_dir(artifact_root: str | Path, chemistry: ChemistryAuditConfig) -> Path:
+    """Return the conventional chemistry artifact directory for a config."""
+
+    return Path(artifact_root) / "chemistry" / chemistry.config_id
 
 
 def audit_dataset_row(
@@ -413,3 +493,7 @@ def _drop_isotopes(molecule: Any) -> Any:
 
 def _attachment_points(molecule: Any) -> tuple[str, ...]:
     return tuple(f"*:{atom.GetIdx()}" for atom in molecule.GetAtoms() if atom.GetAtomicNum() == 0)
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.write_text(dumps(payload, indent=2, sort_keys=True) + "\n")

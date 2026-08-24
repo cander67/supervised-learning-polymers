@@ -1,8 +1,10 @@
 from supervised_learning_polymers.chemistry import (
     CappingConfig,
     ChemistryAuditArtifact,
+    ChemistryAuditArtifactPaths,
     ChemistryAuditConfig,
     ChemistryAuditFailureGroup,
+    ChemistryAuditOutputMetadata,
     ChemistryAuditRecord,
     ChemistryAuditSummary,
     ChemistryFailureRecord,
@@ -10,9 +12,11 @@ from supervised_learning_polymers.chemistry import (
     audit_dataset_row,
     audit_dataset_rows,
     cap_molecule,
+    chemistry_artifact_dir,
     chemistry_cache_key,
     standardize_molecule,
     summarize_chemistry_records,
+    write_chemistry_audit_artifacts,
 )
 from supervised_learning_polymers.interface_backend import create_interface_discovery_server
 from supervised_learning_polymers.interface_discovery import (
@@ -53,8 +57,10 @@ __all__ = [
     "BenchmarkManifest",
     "CappingConfig",
     "ChemistryAuditArtifact",
+    "ChemistryAuditArtifactPaths",
     "ChemistryAuditConfig",
     "ChemistryAuditFailureGroup",
+    "ChemistryAuditOutputMetadata",
     "ChemistryAuditRecord",
     "ChemistryAuditSummary",
     "ChemistryFailureGroup",
@@ -83,6 +89,7 @@ __all__ = [
     "ValidRange",
     "audit_dataset_row",
     "audit_dataset_rows",
+    "chemistry_artifact_dir",
     "cap_molecule",
     "chemistry_cache_key",
     "create_interface_discovery_server",
@@ -90,4 +97,5 @@ __all__ = [
     "open_polymer_target_config",
     "standardize_molecule",
     "summarize_chemistry_records",
+    "write_chemistry_audit_artifacts",
 ]
