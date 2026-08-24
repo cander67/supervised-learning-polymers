@@ -6,10 +6,16 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from supervised_learning_polymers.chemistry import (
+    ChemistryAuditFailureGroup,
+    ChemistryAuditSummary,
+)
 from supervised_learning_polymers.manifest import BenchmarkManifest
 from supervised_learning_polymers.targets import ContractModel
 
 RunStatus = Literal["queued", "running", "completed", "failed"]
+type ChemistryFailureGroup = ChemistryAuditFailureGroup
+type ChemistryFailureSummary = ChemistryAuditSummary
 
 
 class TargetModeSummary(ContractModel):
@@ -19,33 +25,6 @@ class TargetModeSummary(ContractModel):
     selected_targets: tuple[str, ...] = Field(min_length=1)
     description: str = Field(min_length=1)
     sequential_order: tuple[str, ...] = Field(default_factory=tuple)
-
-
-class ChemistryFailureGroup(ContractModel):
-    """Aggregated chemistry failures for triage without requiring full audit artifacts yet."""
-
-    failure_type: str = Field(min_length=1)
-    count: int = Field(ge=1)
-    example_sample_ids: tuple[str, ...] = Field(default_factory=tuple)
-    recommended_action: str = Field(min_length=1)
-
-
-class ChemistryFailureSummary(ContractModel):
-    """Small chemistry-audit-shaped summary for interface discovery."""
-
-    total_records: int = Field(ge=0)
-    valid_records: int = Field(ge=0)
-    failed_records: int = Field(ge=0)
-    failure_groups: tuple[ChemistryFailureGroup, ...] = Field(default_factory=tuple)
-
-    @model_validator(mode="after")
-    def validate_counts(self) -> "ChemistryFailureSummary":
-        if self.valid_records + self.failed_records != self.total_records:
-            raise ValueError("valid and failed chemistry records must add up to total records")
-        grouped_failures = sum(group.count for group in self.failure_groups)
-        if grouped_failures != self.failed_records:
-            raise ValueError("chemistry failure group counts must add up to failed records")
-        return self
 
 
 class RunProgressStep(ContractModel):

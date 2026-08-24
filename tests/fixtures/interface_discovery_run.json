@@ -112,8 +112,8 @@
   },
   "chemistry_failure_summary": {
     "total_records": 8,
-    "valid_records": 6,
-    "failed_records": 2,
+    "valid_records": 5,
+    "failed_records": 3,
     "failure_groups": [
       {
         "failure_type": "parse_error",
@@ -129,7 +129,15 @@
         "example_sample_ids": [
           "poly-0007"
         ],
-        "recommended_action": "Review salts, capping policy, and polymer repeat-unit notation."
+        "recommended_action": "Review standardization settings for this molecule."
+      },
+      {
+        "failure_type": "capping_error",
+        "count": 1,
+        "example_sample_ids": [
+          "poly-0008"
+        ],
+        "recommended_action": "Review attachment points and the selected capping strategy."
       }
     ]
   },
@@ -160,8 +168,11 @@
       }
     ],
     "artifact_paths": {
+      "chemistry_failures": "artifacts/chemistry/chemistry-audit-fixture-v1/failures.json",
+      "chemistry_metadata": "artifacts/chemistry/chemistry-audit-fixture-v1/metadata.json",
+      "chemistry_records": "artifacts/chemistry/chemistry-audit-fixture-v1/records.json",
+      "chemistry_summary": "artifacts/chemistry/chemistry-audit-fixture-v1/summary.json",
       "manifest": "artifacts/interface-discovery/run-interface-discovery-fixture-001/manifest.json",
-      "chemistry_summary": "artifacts/interface-discovery/run-interface-discovery-fixture-001/chemistry-summary.json",
       "metrics": "artifacts/interface-discovery/run-interface-discovery-fixture-001/metrics.json"
     }
   },

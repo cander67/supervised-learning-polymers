@@ -22,6 +22,18 @@ Backend endpoints:
 - `GET /api/artifact`: validated `InterfaceDiscoveryArtifact` JSON.
 - `GET /`, `/app.js`, `/styles.css`: static GUI assets.
 
+## Chemistry Artifacts
+
+The interface fixture's `chemistry_failure_summary` now validates through the PRD 3
+`ChemistryAuditSummary` contract. The browser-facing JSON still uses the same total, valid, failed,
+and failure-group fields, but the failure taxonomy is the chemistry audit taxonomy:
+`missing_smiles`, `parse_error`, `standardization_error`, `capping_error`, and
+`unsupported_polymer_notation`.
+
+When real chemistry audit outputs are available, `run_metadata.artifact_paths` should point at the
+PRD 3 bundle under `artifacts/chemistry/<config-id>/`, including `records.json`, `failures.json`,
+`summary.json`, and `metadata.json`.
+
 ## Tradeoffs
 
 - **Maintainability**: The backend is a small artifact adapter built on Python's standard library.

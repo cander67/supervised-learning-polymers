@@ -24,8 +24,15 @@ def test_backend_serves_artifact_backed_json_endpoint() -> None:
 
     assert artifact["manifest"]["dataset"]["dataset_version"] == "open-polymer-train-fixture-v1"
     assert artifact["target_mode_summary"]["mode"] == "sequential"
-    assert (
-        artifact["chemistry_failure_summary"]["failure_groups"][0]["failure_type"] == "parse_error"
+    assert {
+        group["failure_type"] for group in artifact["chemistry_failure_summary"]["failure_groups"]
+    } == {
+        "capping_error",
+        "parse_error",
+        "standardization_error",
+    }
+    assert artifact["run_metadata"]["artifact_paths"]["chemistry_summary"] == (
+        "artifacts/chemistry/chemistry-audit-fixture-v1/summary.json"
     )
     assert artifact["run_metadata"]["progress_steps"][-1]["name"] == "Fit target chain"
     assert artifact["result_summary"]["primary_metric"] == "weighted_mean_absolute_error"

@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from supervised_learning_polymers import (
+    ChemistryAuditSummary,
     InterfaceDiscoveryArtifact,
     load_interface_discovery_artifact,
 )
@@ -39,9 +40,11 @@ def test_interface_discovery_fixture_includes_chemistry_run_and_result_summaries
     artifact = load_interface_discovery_artifact(FIXTURE_PATH)
 
     chemistry = artifact.chemistry_failure_summary
+    assert isinstance(chemistry, ChemistryAuditSummary)
     assert chemistry.total_records == 8
-    assert chemistry.failed_records == 2
+    assert chemistry.failed_records == 3
     assert {group.failure_type for group in chemistry.failure_groups} == {
+        "capping_error",
         "parse_error",
         "standardization_error",
     }
@@ -86,9 +89,18 @@ def test_interface_discovery_artifact_rejects_target_summary_that_drifted_from_m
 def test_interface_discovery_artifact_rejects_inconsistent_chemistry_counts() -> None:
     artifact = load_interface_discovery_artifact(FIXTURE_PATH)
     data = artifact.model_dump(mode="json")
-    data["chemistry_failure_summary"]["failed_records"] = 3
+    data["chemistry_failure_summary"]["failed_records"] = 4
 
     with pytest.raises(ValidationError, match="valid and failed chemistry records"):
+        InterfaceDiscoveryArtifact.model_validate(data)
+
+
+def test_interface_discovery_artifact_rejects_unknown_chemistry_failure_type() -> None:
+    artifact = load_interface_discovery_artifact(FIXTURE_PATH)
+    data = artifact.model_dump(mode="json")
+    data["chemistry_failure_summary"]["failure_groups"][0]["failure_type"] = "legacy_error"
+
+    with pytest.raises(ValidationError, match="literal_error"):
         InterfaceDiscoveryArtifact.model_validate(data)
 
 
