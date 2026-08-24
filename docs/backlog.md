@@ -16,6 +16,7 @@ Status legend:
 | --- | --- | --- | --- | --- |
 | 1 | Ready for review | [Benchmark Contract And Target Config](prds/01-benchmark-contract-and-target-config.md) | Typed target, dataset, manifest, and sequential leakage contract. | Implemented with fixture-sized behavior tests and docs. |
 | 2 | Ready for review | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | GUI/backend selected in [Public Interface Discovery Decision](interface-discovery-decision.md); branch retains only the GUI/backend survivor path. |
+| 3 | Ready for review | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | Implemented with fixture-sized behavior tests, an opt-in full-data script, chemistry artifact docs, and GUI/backend fixture alignment. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -25,10 +26,9 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 
 | Order | Status | PRD | Scope | Blocked by |
 | --- | --- | --- | --- | --- |
-| 3 | Planned | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | PRD 01 contract |
-| 4 | Planned | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | PRD 03 chemistry audit |
-| 5 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | PRD 03 chemistry audit |
-| 6 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | PRD 01 contract; PRD 03 chemistry audit |
+| 4 | Planned | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | PRD 03 review acceptance |
+| 5 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | PRD 03 review acceptance |
+| 6 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | PRD 01 contract; PRD 03 review acceptance |
 | 7 | Planned | [First Reproducible Baseline Run](prds/07-first-reproducible-baseline-run.md) | Train cheap leakage-safe baselines with tracked configs, metrics, predictions, and artifacts. | PRDs 03, 05, and 06 |
 | 8 | Planned | [Search Infrastructure](prds/08-search-infrastructure.md) | Add grid, random, and Bayesian search with trial persistence and resume behavior. | PRD 07 baseline path |
 | 9 | Planned | [2D Graph Representation And GNN Baseline](prds/09-2d-graph-representation-and-gnn-baseline.md) | Build 2D graph artifacts and one small GNN baseline. | PRDs 03, 06, and 07 |

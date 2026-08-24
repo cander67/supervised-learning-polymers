@@ -4,6 +4,41 @@ PRD 3 introduces the chemistry audit contract and fixture-sized processing path 
 generation or model training. The audit consumes the PRD 01 dataset contract, preserves source
 SMILES, and records derived chemistry fields separately.
 
+## Contract
+
+The chemistry audit is keyed by a `ChemistryAuditConfig`. It records the source dataset version,
+the chemistry config ID, the SMILES column, sample-ID handling, target columns, explicit
+standardization settings, explicit capping settings, and the RDKit version observed at runtime.
+
+Each per-sample record stores:
+
+- `sample_id`, `split`, `raw_smiles`, and requested target values from the source row.
+- `canonical_smiles` from the first RDKit parse of the raw source SMILES.
+- `standardized_smiles` from the configured standardization path.
+- `capped_smiles` from the configured capping path.
+- `attachment_points` describing wildcard atoms found before capping.
+- `status` plus a structured `failure` when processing fails.
+
+Aggregate summaries store total, valid, and failed counts plus grouped failure counts and example
+sample IDs. The same summary contract feeds both persisted chemistry artifacts and the GUI/backend
+interface fixture.
+
+## SMILES Provenance
+
+Source SMILES are immutable audit inputs. The audit never overwrites `raw_smiles`; every derived
+representation is written to its own field so downstream representation, split, and model work can
+trace features back to the exact training-set value.
+
+The derived fields have separate meanings:
+
+- `canonical_smiles`: RDKit's canonical rendering immediately after parsing the source value.
+- `standardized_smiles`: the canonical parsed molecule after the selected standardization policies.
+- `capped_smiles`: the standardized molecule after the selected capping strategy.
+
+For uncapped runs, `capped_smiles` intentionally remains the standardized/parsed control
+representation. Attachment-point metadata is still preserved so later graph and geometry work can
+revisit the original repeat-unit notation.
+
 ## Initial Standardization Defaults
 
 The default `StandardizationConfig` is conservative:
@@ -63,6 +98,25 @@ Each bundle contains:
 - `metadata.json`: dataset version, chemistry config ID, RDKit version, settings, cache key,
   creation timestamp, and output paths.
 
+The `<config-id>` is the chemistry artifact identity, not the source dataset version. Reusing the
+same dataset with different standardization or capping settings should use a distinct chemistry
+config ID and will also produce a distinct cache key.
+
+## Failure Taxonomy
+
+Batch audits classify failures without stopping the full run:
+
+- `missing_smiles`: the configured SMILES field is missing or empty.
+- `parse_error`: RDKit could not parse the raw source SMILES.
+- `standardization_error`: parsing succeeded, but the configured standardization step failed.
+- `capping_error`: parsing and standardization succeeded, but capping failed.
+- `unsupported_attachment_notation`: reserved for polymer attachment notation that should be
+  rejected before downstream representations consume it.
+
+Use `summary.json` for a quick count by failure type. Use `failures.json` for triage because each
+entry includes the sample ID, raw source SMILES, processing stage, failure type, and message. Use
+`records.json` when comparing failed records against successful provenance fields or target values.
+
 ## Full Training Audit Script
 
 Run the full training-set audit explicitly with:
@@ -83,3 +137,35 @@ Useful options include `--sample-id-column`, `--no-sample-id-column`, `--smiles-
 
 This command is intentionally outside the default test suite. Use fixture tests for deterministic
 CI and run the full-data audit only when local source data is available.
+
+## Review Workflow
+
+For PRD 3 review, run the default quality gate first, then run the opt-in full-data audit when
+`data/train/train.csv` is available:
+
+```bash
+uv run ruff format --check src tests
+uv run ruff check src tests
+uv run mypy
+uv run pytest
+uv run slp-chemistry-audit data/train/train.csv \
+  --output-root artifacts \
+  --dataset-version open-polymer-train-v1 \
+  --chemistry-config-id chemistry-audit-v1
+```
+
+Review `artifacts/chemistry/chemistry-audit-v1/summary.json` first, then inspect `failures.json`
+when failed records are present. The GUI/backend fixture is already shaped to consume this summary
+contract through `chemistry_failure_summary` and artifact-path metadata.
+
+## Deferred Chemistry Choices
+
+The first full-data uncapped control run on 2026-08-24 processed all 7,973 rows in
+`data/train/train.csv` with 7,973 valid records and 0 failures. The generated artifacts were written
+to `/tmp/slp-prd3-phase6-artifacts/chemistry/chemistry-audit-v1/` for local inspection and were not
+committed.
+
+Hydrogen and carbon capping remain available fixture-tested strategies, but `uncapped` stays the
+default until real wildcard-heavy polymer examples justify a different default. Carbon capping in
+particular should remain opt-in until later representation or geometry PRDs validate that its valence
+behavior is preferable for the selected downstream tasks.

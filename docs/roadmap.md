@@ -64,8 +64,9 @@ through config, data/model code, artifacts, tests, and docs.
 
 ## Active Implementation
 
-- Active PRD: `docs/prds/02-public-interface-discovery.md`
-- Active ignored plan: `.plans/implementation/02-public-interface-discovery-plan.md`
-- Discovery criteria: `docs/interface-discovery-criteria.md`
-- Discovery decision: `docs/interface-discovery-decision.md`
-- Review status: ready for PRD 02 review with the GUI/backend path retained.
+- Active PRD: `docs/prds/03-full-training-set-chemistry-audit.md`
+- Active ignored plan: `.plans/implementation/03-full-training-set-chemistry-audit-plan.md`
+- Chemistry audit docs: `docs/chemistry-audit.md`
+- Interface alignment docs: `docs/interface-discovery-gui-backend.md`
+- Review status: ready for PRD 03 review with the chemistry audit contract, artifacts, opt-in
+  full-data script, and GUI/backend summary fixture in place.
