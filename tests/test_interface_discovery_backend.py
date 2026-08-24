@@ -28,6 +28,11 @@ def test_backend_serves_artifact_backed_json_endpoint() -> None:
         artifact["chemistry_failure_summary"]["failure_groups"][0]["failure_type"] == "parse_error"
     )
     assert artifact["run_metadata"]["progress_steps"][-1]["name"] == "Fit target chain"
+    assert artifact["result_summary"]["primary_metric"] == "weighted_mean_absolute_error"
+    assert {metadata["metric"] for metadata in artifact["result_summary"]["metric_metadata"]} == {
+        "mean_absolute_error",
+        "weighted_mean_absolute_error",
+    }
     assert (
         artifact["result_summary"]["leaderboard"][0]["run_id"] == artifact["run_metadata"]["run_id"]
     )
@@ -49,9 +54,40 @@ def test_backend_serves_static_gui_assets() -> None:
         css = fetch_text(f"{base_url}/styles.css")
 
     assert '<div id="target-mode"></div>' in index
+    assert 'id="metric-filter"' in index
     assert 'fetch("/api/artifact")' in app_js
+    assert "renderMetricRows" in app_js
     assert "run-interface-discovery-fixture-001" not in app_js
     assert ".summary-grid" in css
+
+
+def test_gui_metric_filter_changes_visible_metric_and_leaderboard_rows() -> None:
+    with running_server() as base_url:
+        html = fetch_text(f"{base_url}/")
+        app_js = fetch_text(f"{base_url}/app.js")
+        artifact_json = fetch_text(f"{base_url}/api/artifact")
+
+    assert 'id="metric-filter"' in html
+    assert "state.metricFilter" in app_js
+
+    artifact = loads(artifact_json)
+    all_metric_rows = artifact["result_summary"]["metrics"]
+    filtered_metric_rows = [
+        row for row in all_metric_rows if row["metric"] == "weighted_mean_absolute_error"
+    ]
+    all_leaderboard_rows = artifact["result_summary"]["leaderboard"]
+    filtered_leaderboard_rows = [
+        row
+        for row in all_leaderboard_rows
+        if row["primary_metric"] == "weighted_mean_absolute_error"
+    ]
+
+    assert len(filtered_metric_rows) < len(all_metric_rows)
+    assert {row["scope"] for row in filtered_metric_rows} == {"aggregate"}
+    assert len(filtered_leaderboard_rows) < len(all_leaderboard_rows)
+    assert all(
+        row["primary_metric"] == "weighted_mean_absolute_error" for row in filtered_leaderboard_rows
+    )
 
 
 @contextmanager

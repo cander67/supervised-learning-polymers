@@ -29,6 +29,9 @@ def test_report_renders_expected_artifact_sections() -> None:
     assert "Fit target chain" in report
     assert "## Results" in report
     assert "mean_absolute_error" in report
+    assert "weighted_mean_absolute_error" in report
+    assert "### Metric Metadata" in report
+    assert "Open Polymer" in report
     assert "## Leaderboard" in report
     assert "`run-interface-discovery-fixture-001`" in report
 

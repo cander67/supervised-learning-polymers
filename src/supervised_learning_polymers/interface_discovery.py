@@ -78,10 +78,19 @@ class RunMetadata(ContractModel):
 class ResultMetric(ContractModel):
     """One target-level metric shown in result review surfaces."""
 
-    target: str = Field(min_length=1)
+    target: str | None = Field(default=None, min_length=1)
     metric: str = Field(min_length=1)
     value: float
     split: str = Field(min_length=1)
+    scope: Literal["target", "aggregate"] = "target"
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> "ResultMetric":
+        if self.scope == "target" and self.target is None:
+            raise ValueError("target-level metrics must include a target")
+        if self.scope == "aggregate" and self.target is not None:
+            raise ValueError("aggregate metrics must not include a target")
+        return self
 
 
 class LeaderboardEntry(ContractModel):
@@ -95,12 +104,31 @@ class LeaderboardEntry(ContractModel):
     target_mode: str = Field(min_length=1)
 
 
+class MetricWeightMetadata(ContractModel):
+    """Display metadata for weighted benchmark metrics computed outside the interface."""
+
+    target: str = Field(min_length=1)
+    weight: float = Field(gt=0)
+    range: float = Field(gt=0)
+    label_count: int = Field(ge=1)
+
+
+class MetricMetadata(ContractModel):
+    """Artifact-provided metric context used for review and filtering."""
+
+    metric: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    target_weights: tuple[MetricWeightMetadata, ...] = Field(default_factory=tuple)
+
+
 class ResultSummary(ContractModel):
     """Result review fields shared by notebook, CLI/report, and GUI prototypes."""
 
     primary_metric: str = Field(min_length=1)
     metrics: tuple[ResultMetric, ...] = Field(min_length=1)
     leaderboard: tuple[LeaderboardEntry, ...] = Field(min_length=1)
+    metric_metadata: tuple[MetricMetadata, ...] = Field(default_factory=tuple)
     notes: tuple[str, ...] = Field(default_factory=tuple)
 
 
@@ -124,7 +152,7 @@ class InterfaceDiscoveryArtifact(ContractModel):
             if self.target_mode_summary.sequential_order != manifest_targets:
                 raise ValueError("sequential target summary order must match manifest target mode")
 
-        metric_targets = {metric.target for metric in self.result_summary.metrics}
+        metric_targets = {metric.target for metric in self.result_summary.metrics if metric.target}
         unknown_metric_targets = [
             target for target in sorted(metric_targets) if target not in manifest_targets
         ]
@@ -132,6 +160,36 @@ class InterfaceDiscoveryArtifact(ContractModel):
             raise ValueError(
                 "result metrics reference targets missing from manifest target mode: "
                 f"{', '.join(unknown_metric_targets)}"
+            )
+
+        metric_names = {metric.metric for metric in self.result_summary.metrics}
+        leaderboard_metric_names = {
+            entry.primary_metric for entry in self.result_summary.leaderboard
+        }
+        metadata_metric_names = {
+            metadata.metric for metadata in self.result_summary.metric_metadata
+        }
+        missing_metric_metadata = sorted(
+            (metric_names | leaderboard_metric_names) - metadata_metric_names
+        )
+        if missing_metric_metadata:
+            raise ValueError(
+                "result metrics are missing metadata definitions: "
+                f"{', '.join(missing_metric_metadata)}"
+            )
+
+        metadata_targets = {
+            target_metadata.target
+            for metric_metadata in self.result_summary.metric_metadata
+            for target_metadata in metric_metadata.target_weights
+        }
+        unknown_metadata_targets = [
+            target for target in sorted(metadata_targets) if target not in manifest_targets
+        ]
+        if unknown_metadata_targets:
+            raise ValueError(
+                "metric metadata references targets missing from manifest target mode: "
+                f"{', '.join(unknown_metadata_targets)}"
             )
 
         leaderboard_run_ids = {entry.run_id for entry in self.result_summary.leaderboard}

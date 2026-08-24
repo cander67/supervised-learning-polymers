@@ -65,7 +65,16 @@
       </section>
 
       <section>
-        <h2>Results</h2>
+        <div class="section-header">
+          <h2>Results</h2>
+          <label>
+            Metric
+            <select id="metric-filter">
+              <option value="all">All metrics</option>
+            </select>
+          </label>
+        </div>
+        <div id="metric-summary" class="metric-summary"></div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -73,6 +82,7 @@
                 <th>Target</th>
                 <th>Split</th>
                 <th>Metric</th>
+                <th>Scope</th>
                 <th>Value</th>
               </tr>
             </thead>

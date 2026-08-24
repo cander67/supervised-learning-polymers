@@ -34,7 +34,9 @@ Backend endpoints:
   successor contract.
 - **Metric review**: The GUI should support filtering or toggling between ordinary MAE and the Open
   Polymer weighted-MAE competition metric once metric artifacts include both values and the
-  associated weighting metadata.
+  associated weighting metadata. The Phase 7 prototype reads these metric values, target weights,
+  ranges, and available-label counts from persisted fixture artifacts; it does not compute wMAE in
+  the browser or backend.
 - **Limits**: The prototype is not a long-running experiment orchestrator, authentication layer, or
   production web app. Phase 6 should decide whether to keep this path, replace it with a richer app
   stack, or retain it only as a local review utility.

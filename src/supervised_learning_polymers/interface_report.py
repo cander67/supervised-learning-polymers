@@ -108,7 +108,19 @@ def render_interface_discovery_report(artifact: InterfaceDiscoveryArtifact) -> s
         ]
     )
     for metric in results.metrics:
-        lines.append(f"| {metric.target} | {metric.split} | {metric.metric} | {metric.value:g} |")
+        target = metric.target or metric.scope
+        lines.append(f"| {target} | {metric.split} | {metric.metric} | {metric.value:g} |")
+
+    if results.metric_metadata:
+        lines.extend(["", "### Metric Metadata", ""])
+        for metadata in results.metric_metadata:
+            lines.append(f"- {metadata.display_name} (`{metadata.metric}`): {metadata.description}")
+            for weight in metadata.target_weights:
+                lines.append(
+                    "  - "
+                    f"{weight.target}: weight={weight.weight:g}, "
+                    f"range={weight.range:g}, labels={weight.label_count}"
+                )
 
     lines.extend(
         [

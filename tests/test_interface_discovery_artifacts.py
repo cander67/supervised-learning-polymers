@@ -48,8 +48,30 @@ def test_interface_discovery_fixture_includes_chemistry_run_and_result_summaries
 
     assert artifact.run_metadata.status == "running"
     assert artifact.run_metadata.progress_steps[-1].name == "Fit target chain"
-    assert artifact.result_summary.primary_metric == "mean_absolute_error"
+    assert artifact.result_summary.primary_metric == "weighted_mean_absolute_error"
     assert artifact.result_summary.leaderboard[0].run_id == artifact.run_metadata.run_id
+
+
+def test_interface_discovery_fixture_includes_weighted_mae_metadata() -> None:
+    artifact = load_interface_discovery_artifact(FIXTURE_PATH)
+
+    metric_names = {metric.metric for metric in artifact.result_summary.metrics}
+    assert metric_names == {"mean_absolute_error", "weighted_mean_absolute_error"}
+
+    weighted_metadata = next(
+        metadata
+        for metadata in artifact.result_summary.metric_metadata
+        if metadata.metric == "weighted_mean_absolute_error"
+    )
+    assert weighted_metadata.display_name == "Open Polymer wMAE"
+    assert {weight.target for weight in weighted_metadata.target_weights} == {
+        "FFV",
+        "Density",
+        "Tc",
+        "Tg",
+        "Rg",
+    }
+    assert all(weight.weight > 0 for weight in weighted_metadata.target_weights)
 
 
 def test_interface_discovery_artifact_rejects_target_summary_that_drifted_from_manifest() -> None:
@@ -78,4 +100,17 @@ def test_interface_discovery_artifact_rejects_metrics_outside_selected_targets()
     )
 
     with pytest.raises(ValidationError, match="metrics reference targets missing"):
+        InterfaceDiscoveryArtifact.model_validate(data)
+
+
+def test_interface_discovery_artifact_rejects_missing_metric_metadata() -> None:
+    artifact = load_interface_discovery_artifact(FIXTURE_PATH)
+    data = artifact.model_dump(mode="json")
+    data["result_summary"]["metric_metadata"] = [
+        metadata
+        for metadata in data["result_summary"]["metric_metadata"]
+        if metadata["metric"] != "weighted_mean_absolute_error"
+    ]
+
+    with pytest.raises(ValidationError, match="missing metadata definitions"):
         InterfaceDiscoveryArtifact.model_validate(data)

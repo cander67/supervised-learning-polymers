@@ -63,5 +63,5 @@ Keep the Phase 5 GUI/backend prototype as the survivor path for PRD 02 review. K
 report generation as companion outputs while they remain thin wrappers over the same artifact
 contract.
 
-Before final PRD 02 review, add fixture and GUI support for weighted-MAE display/filtering so the
-selected interface direction reflects the actual benchmark metric.
+Phase 7 adds fixture and GUI support for weighted-MAE display/filtering so the selected interface
+direction reflects the actual benchmark metric before final review.

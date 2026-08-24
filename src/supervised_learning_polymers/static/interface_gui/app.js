@@ -1,6 +1,7 @@
 const state = {
   artifact: null,
   failureFilter: "all",
+  metricFilter: "all",
 };
 
 const text = (value) => document.createTextNode(value);
@@ -96,28 +97,84 @@ function renderArtifact(artifact) {
       .map(([name, path]) => field(name, path)),
   );
 
-  renderTable("metric-rows", results.metrics, (metric) => {
-    const tr = document.createElement("tr");
-    tr.append(
-      cell(metric.target),
-      cell(metric.split),
-      cell(metric.metric),
-      cell(Number(metric.value).toLocaleString(undefined, { maximumSignificantDigits: 4 }), "num"),
-    );
-    return tr;
-  });
+  renderMetricFilter(results.metric_metadata);
+  renderMetricRows();
+  renderMetricSummary();
+  renderLeaderboardRows();
+}
 
-  renderTable("leaderboard-rows", results.leaderboard, (entry) => {
+function renderLeaderboardRows() {
+  const results = state.artifact.result_summary;
+  const entries = results.leaderboard.filter(
+    (entry) => state.metricFilter === "all" || entry.primary_metric === state.metricFilter,
+  );
+  renderTable("leaderboard-rows", entries, (entry) => {
     const tr = document.createElement("tr");
     tr.append(
       cell(entry.rank, "num"),
       cell(entry.run_id),
       cell(entry.model_family),
       cell(entry.target_mode),
-      cell(Number(entry.primary_score).toLocaleString(undefined, { maximumSignificantDigits: 4 }), "num"),
+      cell(
+        Number(entry.primary_score).toLocaleString(undefined, { maximumSignificantDigits: 4 }),
+        "num",
+      ),
     );
     return tr;
   });
+}
+
+function renderMetricFilter(metadataRows) {
+  const select = document.getElementById("metric-filter");
+  const current = select.value;
+  clear(select);
+  const all = document.createElement("option");
+  all.value = "all";
+  all.appendChild(text("All metrics"));
+  select.appendChild(all);
+  metadataRows.forEach((metadata) => {
+    const option = document.createElement("option");
+    option.value = metadata.metric;
+    option.appendChild(text(metadata.display_name));
+    select.appendChild(option);
+  });
+  select.value = [...select.options].some((option) => option.value === current) ? current : "all";
+}
+
+function renderMetricRows() {
+  const results = state.artifact.result_summary;
+  const metrics = results.metrics.filter(
+    (metric) => state.metricFilter === "all" || metric.metric === state.metricFilter,
+  );
+  renderTable("metric-rows", metrics, (metric) => {
+    const tr = document.createElement("tr");
+    tr.append(
+      cell(metric.target || metric.scope),
+      cell(metric.split),
+      cell(metric.metric),
+      cell(metric.scope),
+      cell(Number(metric.value).toLocaleString(undefined, { maximumSignificantDigits: 4 }), "num"),
+    );
+    return tr;
+  });
+}
+
+function renderMetricSummary() {
+  const results = state.artifact.result_summary;
+  const metadataRows = results.metric_metadata.filter(
+    (metadata) => state.metricFilter === "all" || metadata.metric === state.metricFilter,
+  );
+  renderList(
+    "metric-summary",
+    metadataRows.map((metadata) => {
+      const weightDetails = metadata.target_weights.length
+        ? ` Weights: ${metadata.target_weights
+            .map((weight) => `${weight.target}=${weight.weight}`)
+            .join(", ")}.`
+        : "";
+      return field(metadata.display_name, `${metadata.description}${weightDetails}`);
+    }),
+  );
 }
 
 function renderFailureFilter(groups) {
@@ -156,6 +213,13 @@ function renderFailureRows() {
 document.getElementById("failure-filter").addEventListener("change", (event) => {
   state.failureFilter = event.target.value;
   renderFailureRows();
+});
+
+document.getElementById("metric-filter").addEventListener("change", (event) => {
+  state.metricFilter = event.target.value;
+  renderMetricRows();
+  renderMetricSummary();
+  renderLeaderboardRows();
 });
 
 fetch("/api/artifact")
