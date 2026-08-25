@@ -25,7 +25,7 @@ Status legend:
 
 | Order | Status | PRD | Scope | Notes |
 | --- | --- | --- | --- | --- |
-| 4 | Active | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | Phase 1 is defining the typed geometry feasibility contract on top of PRD 03 chemistry audit records. |
+| 4 | Ready for review | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | Implemented through the typed geometry contract, RDKit ETKDG/MMFF fixture workflow, persisted artifacts, CLI, GUI/backend fixture alignment, and geometry docs. PRD 04 should remain ready for review until accepted. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in

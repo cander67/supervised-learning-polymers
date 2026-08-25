@@ -77,14 +77,16 @@ pulled forward because it becomes useful earlier than originally planned.
 
 - Accepted PRDs: PRD 01 benchmark contract, PRD 02 public interface discovery, and PRD 03
   full-training-set chemistry audit.
-- Active PRD: PRD 04 early 3D geometry groundwork.
-- Current PRD 04 phase: Phase 1 is defining typed geometry feasibility contracts on top of PRD 03
-  chemistry audit records.
-- Next planned implementation milestone: RDKit ETKDG plus MMFF fixture conformer generation from the
-  selected capped or uncapped/standardized chemistry representation.
+- PRD ready for review: PRD 04 early 3D geometry groundwork.
+- Current PRD 04 status: implemented locally with typed geometry contracts, RDKit ETKDG/MMFF
+  conformer attempts, persisted geometry artifacts, CLI generation, GUI/backend fixture alignment,
+  and reviewer documentation. It is not accepted until PRD-level review closes out.
+- Next planned implementation milestone: PRD 13 structure viewer and validation workbench can begin
+  from PRD 04 geometry summary, failure, metadata, and SDF artifact shapes.
 - Next interface PRD after geometry groundwork:
   `docs/prds/13-structure-viewer-and-validation-workbench.md`
 - Chemistry audit docs: `docs/chemistry-audit.md`
+- Geometry groundwork docs: `docs/geometry-groundwork.md`
 - Interface alignment docs: `docs/interface-discovery-gui-backend.md`
 - Review status: PRD 03 has been accepted after the final review gate passed locally with the
   chemistry audit contract, artifacts, opt-in full-data script, and GUI/backend summary fixture in
