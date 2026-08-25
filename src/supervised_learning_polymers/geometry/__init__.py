@@ -20,6 +20,7 @@ from supervised_learning_polymers.geometry.feasibility import (
     GeometryProcessingStage,
     GeometrySummary,
     GeometryTiming,
+    attempt_geometry_record,
 )
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "GeometryProcessingStage",
     "GeometrySummary",
     "GeometryTiming",
+    "attempt_geometry_record",
 ]
