@@ -52,6 +52,7 @@ function renderArtifact(artifact) {
   const target = artifact.target_mode_summary;
   const manifest = artifact.manifest;
   const chemistry = artifact.chemistry_failure_summary;
+  const geometry = artifact.geometry_summary;
   const results = artifact.result_summary;
 
   setText("run-title", run.display_name);
@@ -82,6 +83,7 @@ function renderArtifact(artifact) {
 
   renderFailureFilter(chemistry.failure_groups);
   renderFailureRows();
+  renderGeometrySummary(geometry);
 
   renderList(
     "run-progress",
@@ -101,6 +103,32 @@ function renderArtifact(artifact) {
   renderMetricRows();
   renderMetricSummary();
   renderLeaderboardRows();
+}
+
+function renderGeometrySummary(geometry) {
+  if (!geometry) {
+    renderList("geometry-summary", [field("Status", "Not available")]);
+    renderTable("geometry-failure-rows", [], (group) => group);
+    return;
+  }
+
+  renderList("geometry-summary", [
+    field("Inputs", geometry.total_chemistry_valid_records.toLocaleString()),
+    field("Success", geometry.successful_records.toLocaleString()),
+    field("Failed", geometry.failed_records.toLocaleString()),
+    field("Coverage", `${(geometry.coverage_fraction * 100).toFixed(2)}%`),
+  ]);
+
+  renderTable("geometry-failure-rows", geometry.failure_groups, (group) => {
+    const tr = document.createElement("tr");
+    tr.append(
+      cell(group.failure_type),
+      cell(group.count, "num"),
+      cell(group.example_sample_ids.join(", ") || "n/a"),
+      cell(group.recommended_action),
+    );
+    return tr;
+  });
 }
 
 function renderLeaderboardRows() {

@@ -34,6 +34,12 @@ def test_backend_serves_artifact_backed_json_endpoint() -> None:
     assert artifact["run_metadata"]["artifact_paths"]["chemistry_summary"] == (
         "artifacts/chemistry/chemistry-audit-fixture-v1/summary.json"
     )
+    assert artifact["geometry_summary"]["total_chemistry_valid_records"] == 5
+    assert artifact["geometry_summary"]["successful_records"] == 3
+    assert artifact["geometry_summary"]["failed_records"] == 2
+    assert artifact["run_metadata"]["artifact_paths"]["geometry_summary"] == (
+        "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json"
+    )
     assert artifact["run_metadata"]["progress_steps"][-1]["name"] == "Fit target chain"
     assert artifact["result_summary"]["primary_metric"] == "weighted_mean_absolute_error"
     assert {metadata["metric"] for metadata in artifact["result_summary"]["metric_metadata"]} == {
@@ -52,8 +58,10 @@ def test_backend_serves_static_gui_assets() -> None:
         css = fetch_text(f"{base_url}/styles.css")
 
     assert '<div id="target-mode"></div>' in index
+    assert 'id="geometry-summary"' in index
     assert 'id="metric-filter"' in index
     assert 'fetch("/api/artifact")' in app_js
+    assert "renderGeometrySummary" in app_js
     assert "renderMetricRows" in app_js
     assert "run-interface-discovery-fixture-001" not in app_js
     assert ".summary-grid" in css

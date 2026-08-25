@@ -141,6 +141,27 @@
       }
     ]
   },
+  "geometry_summary": {
+    "total_chemistry_valid_records": 5,
+    "attempted_records": 5,
+    "successful_records": 3,
+    "failed_records": 2,
+    "skipped_records": 0,
+    "skipped_fallback_records": 2,
+    "coverage_fraction": 0.6,
+    "total_runtime_seconds": 0.318,
+    "failure_groups": [
+      {
+        "failure_type": "embedding_failed",
+        "count": 2,
+        "example_sample_ids": [
+          "poly-0006",
+          "poly-0009"
+        ],
+        "recommended_action": "Try a capped input representation or inspect the molecule."
+      }
+    ]
+  },
   "run_metadata": {
     "run_id": "run-interface-discovery-fixture-001",
     "display_name": "Sequential Ridge Baseline Fixture",
@@ -172,6 +193,10 @@
       "chemistry_metadata": "artifacts/chemistry/chemistry-audit-fixture-v1/metadata.json",
       "chemistry_records": "artifacts/chemistry/chemistry-audit-fixture-v1/records.json",
       "chemistry_summary": "artifacts/chemistry/chemistry-audit-fixture-v1/summary.json",
+      "geometry_failures": "artifacts/geometry/geometry-rdkit-fixture-v1/failures.json",
+      "geometry_metadata": "artifacts/geometry/geometry-rdkit-fixture-v1/metadata.json",
+      "geometry_records": "artifacts/geometry/geometry-rdkit-fixture-v1/records.json",
+      "geometry_summary": "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json",
       "manifest": "artifacts/interface-discovery/run-interface-discovery-fixture-001/manifest.json",
       "metrics": "artifacts/interface-discovery/run-interface-discovery-fixture-001/metrics.json"
     }

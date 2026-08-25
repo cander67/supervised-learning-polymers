@@ -10,12 +10,14 @@ from supervised_learning_polymers.chemistry import (
     ChemistryAuditFailureGroup,
     ChemistryAuditSummary,
 )
+from supervised_learning_polymers.geometry import GeometrySummary
 from supervised_learning_polymers.manifest import BenchmarkManifest
 from supervised_learning_polymers.targets import ContractModel
 
 RunStatus = Literal["queued", "running", "completed", "failed"]
 type ChemistryFailureGroup = ChemistryAuditFailureGroup
 type ChemistryFailureSummary = ChemistryAuditSummary
+type GeometryFailureSummary = GeometrySummary
 
 
 class TargetModeSummary(ContractModel):
@@ -118,6 +120,7 @@ class InterfaceDiscoveryArtifact(ContractModel):
     manifest: BenchmarkManifest
     target_mode_summary: TargetModeSummary
     chemistry_failure_summary: ChemistryFailureSummary
+    geometry_summary: GeometryFailureSummary | None = None
     run_metadata: RunMetadata
     result_summary: ResultSummary
 

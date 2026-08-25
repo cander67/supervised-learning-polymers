@@ -38,6 +38,18 @@ When real chemistry audit outputs are available, `run_metadata.artifact_paths` s
 PRD 3 bundle under `artifacts/chemistry/<config-id>/`, including `records.json`, `failures.json`,
 `summary.json`, and `metadata.json`.
 
+## Geometry Artifacts
+
+The interface fixture can now include `geometry_summary`, validated through the PRD 4
+`GeometrySummary` contract. The backend exposes geometry totals, successful and failed attempt
+counts, coverage, runtime, and representative failure groups from the artifact JSON.
+
+When real geometry outputs are available, `run_metadata.artifact_paths` should point at the PRD 4
+bundle under `artifacts/geometry/<geometry-config-id>/`, including `records.json`, `failures.json`,
+`summary.json`, and `metadata.json`. The current GUI displays only aggregate feasibility and failure
+summary fields; PRD 13 should consume the same artifact identities when it adds molecule-level
+SMILES, 2D, and 3D structure review panels.
+
 ## Tradeoffs
 
 - **Maintainability**: The backend is a small artifact adapter built on Python's standard library.

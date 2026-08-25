@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from supervised_learning_polymers import (
     ChemistryAuditSummary,
+    GeometrySummary,
     InterfaceDiscoveryArtifact,
     load_interface_discovery_artifact,
 )
@@ -55,6 +56,24 @@ def test_interface_discovery_fixture_includes_chemistry_run_and_result_summaries
     assert artifact.result_summary.leaderboard[0].run_id == artifact.run_metadata.run_id
 
 
+def test_interface_discovery_fixture_includes_geometry_summary_for_viewer_workbench() -> None:
+    artifact = load_interface_discovery_artifact(FIXTURE_PATH)
+
+    geometry = artifact.geometry_summary
+    assert isinstance(geometry, GeometrySummary)
+    assert geometry.total_chemistry_valid_records == 5
+    assert geometry.attempted_records == 5
+    assert geometry.successful_records == 3
+    assert geometry.failed_records == 2
+    assert geometry.coverage_fraction == 0.6
+    assert {group.failure_type: group.count for group in geometry.failure_groups} == {
+        "embedding_failed": 2
+    }
+    assert artifact.run_metadata.artifact_paths["geometry_summary"] == (
+        "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json"
+    )
+
+
 def test_interface_discovery_fixture_includes_weighted_mae_metadata() -> None:
     artifact = load_interface_discovery_artifact(FIXTURE_PATH)
 
@@ -102,6 +121,28 @@ def test_interface_discovery_artifact_rejects_unknown_chemistry_failure_type() -
 
     with pytest.raises(ValidationError, match="literal_error"):
         InterfaceDiscoveryArtifact.model_validate(data)
+
+
+def test_interface_discovery_artifact_rejects_inconsistent_geometry_counts() -> None:
+    artifact = load_interface_discovery_artifact(FIXTURE_PATH)
+    data = artifact.model_dump(mode="json")
+    assert data["geometry_summary"] is not None
+    data["geometry_summary"]["successful_records"] = 4
+
+    with pytest.raises(ValidationError, match="successful and failed records"):
+        InterfaceDiscoveryArtifact.model_validate(data)
+
+
+def test_interface_discovery_artifact_accepts_missing_geometry_summary_for_legacy_fixtures() -> (
+    None
+):
+    artifact = load_interface_discovery_artifact(FIXTURE_PATH)
+    data = artifact.model_dump(mode="json")
+    data.pop("geometry_summary")
+
+    validated = InterfaceDiscoveryArtifact.model_validate(data)
+
+    assert validated.geometry_summary is None
 
 
 def test_interface_discovery_artifact_rejects_metrics_outside_selected_targets() -> None:

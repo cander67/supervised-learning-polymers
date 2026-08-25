@@ -18,10 +18,12 @@ from supervised_learning_polymers.chemistry import (
     summarize_chemistry_records,
     write_chemistry_audit_artifacts,
 )
+from supervised_learning_polymers.geometry import GeometryFailureGroup, GeometrySummary
 from supervised_learning_polymers.interface_backend import create_interface_discovery_server
 from supervised_learning_polymers.interface_discovery import (
     ChemistryFailureGroup,
     ChemistryFailureSummary,
+    GeometryFailureSummary,
     InterfaceDiscoveryArtifact,
     LeaderboardEntry,
     MetricMetadata,
@@ -68,6 +70,9 @@ __all__ = [
     "ChemistryFailureSummary",
     "ConfigReference",
     "DatasetConfig",
+    "GeometryFailureGroup",
+    "GeometryFailureSummary",
+    "GeometrySummary",
     "GroupTargetMode",
     "InterfaceDiscoveryArtifact",
     "LeaderboardEntry",
