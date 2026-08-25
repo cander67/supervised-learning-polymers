@@ -24,6 +24,7 @@ _MAX_FAILURE_EXAMPLES = 3
 GeometryInputRepresentation = Literal["standardized_smiles", "capped_smiles"]
 GeometryMethodName = Literal["rdkit_etkdg_mmff", "xtb", "mlip"]
 FallbackMethodName = Literal["xtb", "mlip"]
+FALLBACK_METHODS: tuple[FallbackMethodName, ...] = ("xtb", "mlip")
 GeometryAttemptStatus = Literal["success", "failed"]
 GeometryFailureType = Literal[
     "missing_input_smiles",
@@ -434,6 +435,7 @@ def attempt_geometry_record(
     if input_smiles is None or input_smiles.strip() == "":
         return _failed_attempt(
             base_payload,
+            geometry,
             rdkit_version=rdkit_version,
             start=start,
             failure_type="missing_input_smiles",
@@ -452,6 +454,7 @@ def attempt_geometry_record(
     if molecule is None:
         return _failed_attempt(
             base_payload,
+            geometry,
             rdkit_version=rdkit_version,
             start=start,
             failure_type="parse_error",
@@ -469,6 +472,7 @@ def attempt_geometry_record(
     if embed_status != 0:
         return _failed_attempt(
             base_payload,
+            geometry,
             rdkit_version=rdkit_version,
             start=start,
             failure_type="embedding_failed",
@@ -481,6 +485,7 @@ def attempt_geometry_record(
     if optimization_status == "failed":
         return _failed_attempt(
             base_payload,
+            geometry,
             rdkit_version=rdkit_version,
             start=start,
             failure_type="optimization_failed",
@@ -504,7 +509,7 @@ def attempt_geometry_record(
         ),
         timing=GeometryTiming(runtime_seconds=perf_counter() - start),
         sdf_text=sdf_text,
-        fallback_provenance=_skipped_fallbacks_after_success(geometry),
+        fallback_provenance=_fallback_provenance(geometry, rdkit_succeeded=True),
     )
 
 
@@ -553,6 +558,7 @@ def _optimize_molecule(molecule: Any, geometry: GeometryConfig) -> str:
 
 def _failed_attempt(
     base_payload: _AttemptBasePayload,
+    geometry: GeometryConfig,
     *,
     rdkit_version: str,
     start: float,
@@ -583,22 +589,54 @@ def _failed_attempt(
             stage=stage,
             recommended_action=recommended_action,
         ),
+        fallback_provenance=_fallback_provenance(geometry, rdkit_succeeded=False),
     )
 
 
-def _skipped_fallbacks_after_success(
+def _fallback_provenance(
     geometry: GeometryConfig,
+    *,
+    rdkit_succeeded: bool,
 ) -> tuple[FallbackMethodProvenance, ...]:
-    return tuple(
-        FallbackMethodProvenance(
-            method_name=method_name,
-            priority=index,
-            status="skipped_not_needed",
-            reason="RDKit conformer generation succeeded.",
-            dependency_available=False,
-        )
-        for index, method_name in enumerate(geometry.fallback_methods, start=1)
-    )
+    enabled_priorities = {
+        method_name: index for index, method_name in enumerate(geometry.fallback_methods, start=1)
+    }
+    provenance: list[FallbackMethodProvenance] = []
+    for default_index, method_name in enumerate(FALLBACK_METHODS, start=1):
+        configured_priority = enabled_priorities.get(method_name)
+        if configured_priority is None:
+            provenance.append(
+                FallbackMethodProvenance(
+                    method_name=method_name,
+                    priority=default_index,
+                    status="disabled",
+                    reason="Fallback method is not enabled in geometry config.",
+                    dependency_available=False,
+                )
+            )
+            continue
+
+        if rdkit_succeeded:
+            provenance.append(
+                FallbackMethodProvenance(
+                    method_name=method_name,
+                    priority=configured_priority,
+                    status="skipped_not_needed",
+                    reason="RDKit conformer generation succeeded.",
+                    dependency_available=False,
+                )
+            )
+        else:
+            provenance.append(
+                FallbackMethodProvenance(
+                    method_name=method_name,
+                    priority=configured_priority,
+                    status="skipped_dependency_unavailable",
+                    reason="Fallback dependency is not installed or configured for local runs.",
+                    dependency_available=False,
+                )
+            )
+    return tuple(provenance)
 
 
 def _write_json(path: Path, payload: object) -> None:

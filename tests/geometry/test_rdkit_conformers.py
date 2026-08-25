@@ -51,6 +51,57 @@ def test_rdkit_conformer_attempt_generates_viewer_ready_sdf_for_small_molecule()
     assert record.failure is None
 
 
+def test_disabled_fallback_methods_are_recorded_without_external_dependencies() -> None:
+    chemistry = ChemistryAuditConfig(config_id="chemistry-fixture-v1")
+    chemistry_record = audit_dataset_row(
+        {"id": "poly-ethanol", "SMILES": "CCO"},
+        _dataset(),
+        row_index=0,
+        chemistry=chemistry,
+    )
+
+    record = attempt_geometry_record(
+        chemistry_record,
+        chemistry,
+        GeometryConfig(config_id="geometry-rdkit-v1", fallback_methods=()),
+        rdkit_version="test-rdkit-version",
+    )
+
+    assert {fallback.method_name: fallback.status for fallback in record.fallback_provenance} == {
+        "xtb": "disabled",
+        "mlip": "disabled",
+    }
+    assert all(fallback.dependency_available is False for fallback in record.fallback_provenance)
+
+
+def test_configured_fallback_methods_are_skipped_after_rdkit_success() -> None:
+    chemistry = ChemistryAuditConfig(config_id="chemistry-fixture-v1")
+    chemistry_record = audit_dataset_row(
+        {"id": "poly-ethanol", "SMILES": "CCO"},
+        _dataset(),
+        row_index=0,
+        chemistry=chemistry,
+    )
+
+    record = attempt_geometry_record(
+        chemistry_record,
+        chemistry,
+        GeometryConfig(
+            config_id="geometry-rdkit-v1",
+            fallback_methods=("xtb", "mlip"),
+        ),
+        rdkit_version="test-rdkit-version",
+    )
+
+    assert {
+        fallback.method_name: (fallback.priority, fallback.status, fallback.reason)
+        for fallback in record.fallback_provenance
+    } == {
+        "xtb": (1, "skipped_not_needed", "RDKit conformer generation succeeded."),
+        "mlip": (2, "skipped_not_needed", "RDKit conformer generation succeeded."),
+    }
+
+
 def test_geometry_input_representation_can_use_standardized_or_capped_smiles() -> None:
     chemistry = ChemistryAuditConfig(
         config_id="chemistry-hydrogen-v1",
@@ -142,6 +193,36 @@ def test_missing_selected_geometry_input_becomes_structured_failure() -> None:
     assert record.failure.failure_type == "missing_input_smiles"
     assert record.failure.stage == "input"
     assert record.sdf_text is None
+
+
+def test_configured_fallback_methods_are_marked_unavailable_after_rdkit_failure() -> None:
+    chemistry = ChemistryAuditConfig(config_id="chemistry-fixture-v1")
+    chemistry_record = audit_dataset_row(
+        {"id": "poly-ethanol", "SMILES": "CCO"},
+        _dataset(),
+        row_index=0,
+        chemistry=chemistry,
+    ).model_copy(update={"capped_smiles": None})
+
+    record = attempt_geometry_record(
+        chemistry_record,
+        chemistry,
+        GeometryConfig(
+            config_id="geometry-rdkit-v1",
+            fallback_methods=("xtb", "mlip"),
+        ),
+        rdkit_version="test-rdkit-version",
+    )
+
+    assert record.status == "failed"
+    assert {
+        fallback.method_name: (fallback.priority, fallback.status)
+        for fallback in record.fallback_provenance
+    } == {
+        "xtb": (1, "skipped_dependency_unavailable"),
+        "mlip": (2, "skipped_dependency_unavailable"),
+    }
+    assert all(fallback.dependency_available is False for fallback in record.fallback_provenance)
 
 
 def test_malformed_selected_geometry_input_becomes_structured_parse_failure() -> None:
