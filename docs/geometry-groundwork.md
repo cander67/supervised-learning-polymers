@@ -120,6 +120,78 @@ The full training-set feasibility run is intentionally outside default pytest. W
 data is available, generate or reuse a PRD 3 chemistry audit bundle first, then run geometry
 feasibility from that bundle.
 
+## Local Full-Training-Set Run
+
+A local full-training-set run was completed on ignored, reproducible artifacts under:
+
+```text
+artifacts/chemistry/chemistry-audit-v1/
+artifacts/geometry/geometry-rdkit-v1/
+```
+
+These artifacts are intentionally not committed. The run used `open-polymer-train-v1`,
+`chemistry-audit-v1`, `geometry-rdkit-v1`, RDKit `2026.03.3`, `rdkit_etkdg_mmff`,
+`input_representation = capped_smiles`, `embed_attempts = 20`,
+`optimization_max_iterations = 200`, `random_seed = 61453`, and no configured fallback methods. The
+upstream chemistry provenance reported `capping_strategy = uncapped`, so the selected geometry
+inputs still contained wildcard atoms.
+
+Observed results:
+
+- Chemistry audit: 7,973 valid records, 0 chemistry failures.
+- Geometry: 7,973 attempted records, 7,180 successes, 793 failures, 0 skipped records.
+- Coverage: 90.05%.
+- Runtime: 305.20 seconds total, about 0.038 seconds per attempted record on this local run.
+- Failure groups: all 793 failures were `embedding_failed` at the `embedding` stage.
+- Failure messages: 631 RDKit ETKDG status `-1` failures and 162 RDKit bounds-matrix invariant
+  violations.
+- Successful records all produced SDF text. MMFF optimization status was `unavailable` for the
+  successful wildcard-containing molecules, so this run primarily validates embeddable conformer
+  generation rather than force-field-refined polymer endpoint geometry.
+
+Coverage by selected-input heavy atom count:
+
+| Heavy atoms | Total | Success | Failure | Coverage |
+| --- | ---: | ---: | ---: | ---: |
+| 1-10 | 675 | 599 | 76 | 88.74% |
+| 11-20 | 1,660 | 1,583 | 77 | 95.36% |
+| 21-40 | 3,393 | 3,288 | 105 | 96.91% |
+| 41-60 | 1,659 | 1,417 | 242 | 85.41% |
+| 61-80 | 467 | 272 | 195 | 58.24% |
+| 81-100 | 97 | 20 | 77 | 20.62% |
+| 101+ | 22 | 1 | 21 | 4.55% |
+
+Failure records were materially larger than successes: failed molecules had a median of 52 heavy
+atoms versus 28 for successful molecules, and a 95th percentile of 92 versus 59. Attachment-point
+count alone was not a useful separator because nearly all records had two wildcard atoms.
+
+## Coverage Follow-Ups
+
+The highest-leverage next step is to separate endpoint representation effects from molecule-size
+effects. The local run labeled its input as `capped_smiles`, but the upstream chemistry artifact was
+uncapped, so all geometry inputs still contained wildcard atoms. A follow-up should rerun the
+geometry workflow against a hydrogen-capped chemistry artifact and compare coverage, failure
+messages, MMFF optimization availability, and runtime against the uncapped artifact.
+
+Recommended focus areas:
+
+- **Capping comparison**: use existing PRD 03 chemistry audit behavior plus PRD 04 geometry CLI to
+  produce paired uncapped and hydrogen-capped geometry summaries. This can be handled as PRD 04
+  review follow-up if required before acceptance, or recorded as a small new PRD if the comparison
+  needs committed paired artifacts, docs, or automated report generation.
+- **ETKDG retry policy**: add a geometry hardening slice that retries failed embeddings with larger
+  attempt budgets and alternate RDKit distance-geometry settings, especially for 41+ heavy-atom
+  molecules. This is likely a new PRD because it changes the method contract and cache identity.
+- **Failure triage UI**: use PRD 13 structure viewer and validation workbench to inspect examples
+  from `failures.json`, compare uncapped/capped representations, and decide whether failed cases are
+  chemically meaningful polymer endpoints or representation artifacts.
+- **Fallback methods**: use PRD 10 geometry-enabled representation/model work, or a preceding
+  geometry-fallback PRD, to validate whether xTB/MLIP or another conformer backend improves coverage
+  enough to justify runtime and dependency cost.
+- **Coverage bias analysis**: PRD 10 should measure whether the 9.95% geometry failures are
+  concentrated in target regimes or structural families that would bias geometry-aware model
+  comparisons.
+
 ## Reviewer Workflow
 
 For deterministic local review, run the default quality gate:
