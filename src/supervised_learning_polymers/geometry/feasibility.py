@@ -1,6 +1,11 @@
 """Typed geometry feasibility contracts for conformer artifact groundwork."""
 
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from hashlib import sha256
 from importlib import import_module
+from json import dumps
+from pathlib import Path
 from time import perf_counter
 from typing import Any, Literal, TypedDict
 
@@ -14,6 +19,7 @@ _rdkit: Any = import_module("rdkit")
 Chem: Any = import_module("rdkit.Chem")
 AllChem: Any = import_module("rdkit.Chem.AllChem")
 RDKIT_VERSION = str(_rdkit.__version__)
+_MAX_FAILURE_EXAMPLES = 3
 
 GeometryInputRepresentation = Literal["standardized_smiles", "capped_smiles"]
 GeometryMethodName = Literal["rdkit_etkdg_mmff", "xtb", "mlip"]
@@ -37,6 +43,16 @@ FallbackMethodStatus = Literal[
     "success",
     "failed",
 ]
+_RECOMMENDED_ACTIONS: dict[GeometryFailureType, str] = {
+    "missing_input_smiles": (
+        "Inspect the upstream chemistry record or choose a representation with SMILES."
+    ),
+    "parse_error": "Inspect the selected chemistry representation.",
+    "embedding_failed": "Try a capped input representation or inspect the molecule.",
+    "optimization_failed": "Inspect the molecule or try a fallback geometry method.",
+    "unsupported_wildcard_atoms": "Try a capped input representation or inspect wildcard atoms.",
+    "method_unavailable": "Install or configure the requested geometry method.",
+}
 
 
 class _AttemptBasePayload(TypedDict):
@@ -265,6 +281,144 @@ class GeometryOutputMetadata(ContractModel):
     output_paths: GeometryArtifactPaths
 
 
+def summarize_geometry_records(
+    records: Sequence[GeometryAttemptRecord],
+    *,
+    total_chemistry_valid_records: int | None = None,
+) -> GeometrySummary:
+    """Summarize geometry attempts into coverage, failure, fallback, and runtime counts."""
+
+    total_records = (
+        len(records) if total_chemistry_valid_records is None else total_chemistry_valid_records
+    )
+    if total_records < len(records):
+        raise ValueError("total chemistry-valid records cannot be less than attempted records")
+
+    successful_records = sum(record.status == "success" for record in records)
+    failure_records = tuple(record for record in records if record.failure is not None)
+    grouped_failures: dict[GeometryFailureType, list[GeometryFailureRecord]] = {}
+    for record in failure_records:
+        assert record.failure is not None
+        grouped_failures.setdefault(record.failure.failure_type, []).append(record.failure)
+
+    skipped_fallback_records = sum(
+        1
+        for record in records
+        for fallback in record.fallback_provenance
+        if fallback.status.startswith("skipped")
+    )
+    coverage_fraction = 0.0 if total_records == 0 else successful_records / total_records
+    return GeometrySummary(
+        total_chemistry_valid_records=total_records,
+        attempted_records=len(records),
+        successful_records=successful_records,
+        failed_records=len(failure_records),
+        skipped_records=total_records - len(records),
+        skipped_fallback_records=skipped_fallback_records,
+        coverage_fraction=coverage_fraction,
+        total_runtime_seconds=sum(record.timing.runtime_seconds for record in records),
+        failure_groups=tuple(
+            GeometryFailureGroup(
+                failure_type=failure_type,
+                count=len(failures),
+                example_sample_ids=tuple(
+                    failure.sample_id for failure in failures[:_MAX_FAILURE_EXAMPLES]
+                ),
+                recommended_action=_RECOMMENDED_ACTIONS[failure_type],
+            )
+            for failure_type, failures in sorted(grouped_failures.items())
+        ),
+    )
+
+
+def write_geometry_artifacts(
+    artifact: GeometryArtifact,
+    artifact_root: str | Path,
+    *,
+    created_at: str | None = None,
+) -> GeometryArtifactPaths:
+    """Persist geometry attempt records, failures, summary, and metadata."""
+
+    output_dir = geometry_artifact_dir(artifact_root, artifact.geometry)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    paths = GeometryArtifactPaths(
+        artifact_root=str(output_dir),
+        records=str(output_dir / "records.json"),
+        failures=str(output_dir / "failures.json"),
+        summary=str(output_dir / "summary.json"),
+        metadata=str(output_dir / "metadata.json"),
+    )
+    rdkit_version = artifact.rdkit_version or RDKIT_VERSION
+    metadata = GeometryOutputMetadata(
+        artifact_version=artifact.artifact_version,
+        dataset_version=artifact.dataset.dataset_version,
+        chemistry_config_id=artifact.chemistry.config_id,
+        chemistry_cache_key=artifact.chemistry_cache_key,
+        chemistry_provenance=ChemistryGeometryProvenance(
+            capping_strategy=artifact.chemistry.capping.strategy,
+            capping_version=artifact.chemistry.capping.version,
+            geometry_input_representation=artifact.geometry.input_representation,
+        ),
+        geometry_config_id=artifact.geometry.config_id,
+        geometry_cache_key=geometry_cache_key(
+            artifact.dataset,
+            artifact.chemistry,
+            artifact.chemistry_cache_key,
+            artifact.geometry,
+            rdkit_version=rdkit_version,
+        ),
+        rdkit_version=rdkit_version,
+        created_at=created_at or datetime.now(UTC).isoformat(),
+        settings=artifact.geometry,
+        output_paths=paths,
+    )
+
+    _write_json(
+        Path(paths.records), [record.model_dump(mode="json") for record in artifact.records]
+    )
+    _write_json(
+        Path(paths.failures),
+        [
+            record.failure.model_dump(mode="json")
+            for record in artifact.records
+            if record.failure is not None
+        ],
+    )
+    _write_json(Path(paths.summary), artifact.summary.model_dump(mode="json"))
+    _write_json(Path(paths.metadata), metadata.model_dump(mode="json"))
+    return paths
+
+
+def geometry_artifact_dir(artifact_root: str | Path, geometry: GeometryConfig) -> Path:
+    """Return the conventional geometry artifact directory for a config."""
+
+    return Path(artifact_root) / "geometry" / geometry.config_id
+
+
+def geometry_cache_key(
+    dataset: DatasetConfig,
+    chemistry: ChemistryAuditConfig,
+    chemistry_cache_key: str,
+    geometry: GeometryConfig,
+    *,
+    rdkit_version: str = RDKIT_VERSION,
+) -> str:
+    """Return a deterministic cache key for geometry feasibility settings."""
+
+    payload = {
+        "dataset": dataset.model_dump(mode="json"),
+        "chemistry": {
+            "config_id": chemistry.config_id,
+            "cache_key": chemistry_cache_key,
+        },
+        "geometry": geometry.model_dump(mode="json"),
+        "rdkit_version": rdkit_version,
+    }
+    serialized = dumps(payload, sort_keys=True, separators=(",", ":"))
+    return sha256(serialized.encode("utf-8")).hexdigest()
+
+
 def attempt_geometry_record(
     chemistry_record: ChemistryAuditRecord,
     chemistry: ChemistryAuditConfig,
@@ -445,3 +599,7 @@ def _skipped_fallbacks_after_success(
         )
         for index, method_name in enumerate(geometry.fallback_methods, start=1)
     )
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.write_text(dumps(payload, indent=2, sort_keys=True) + "\n")

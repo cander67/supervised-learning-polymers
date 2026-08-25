@@ -21,6 +21,10 @@ from supervised_learning_polymers.geometry.feasibility import (
     GeometrySummary,
     GeometryTiming,
     attempt_geometry_record,
+    geometry_artifact_dir,
+    geometry_cache_key,
+    summarize_geometry_records,
+    write_geometry_artifacts,
 )
 
 __all__ = [
@@ -44,4 +48,8 @@ __all__ = [
     "GeometrySummary",
     "GeometryTiming",
     "attempt_geometry_record",
+    "geometry_artifact_dir",
+    "geometry_cache_key",
+    "summarize_geometry_records",
+    "write_geometry_artifacts",
 ]
