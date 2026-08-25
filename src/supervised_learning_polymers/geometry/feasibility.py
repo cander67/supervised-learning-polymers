@@ -1,12 +1,15 @@
 """Typed geometry feasibility contracts for conformer artifact groundwork."""
 
-from collections.abc import Sequence
+import signal
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from hashlib import sha256
 from importlib import import_module
 from json import dumps
 from pathlib import Path
 from time import perf_counter
+from types import FrameType
 from typing import Any, Literal, TypedDict
 
 from pydantic import Field, model_validator
@@ -432,6 +435,38 @@ def attempt_geometry_record(
     start = perf_counter()
     input_smiles = _selected_input_smiles(chemistry_record, geometry.input_representation)
     base_payload = _attempt_base_payload(chemistry_record, chemistry, geometry, input_smiles)
+    try:
+        with _geometry_timeout(geometry.timeout_seconds):
+            return _attempt_geometry_record_without_timeout(
+                input_smiles,
+                base_payload,
+                geometry,
+                rdkit_version=rdkit_version,
+                start=start,
+            )
+    except TimeoutError as error:
+        return _failed_attempt(
+            base_payload,
+            geometry,
+            rdkit_version=rdkit_version,
+            start=start,
+            failure_type="embedding_failed",
+            message=f"RDKit geometry attempt timed out: {error}",
+            stage="embedding",
+            recommended_action=(
+                "Increase the per-record timeout, try fewer embedding attempts, or inspect the molecule."
+            ),
+        )
+
+
+def _attempt_geometry_record_without_timeout(
+    input_smiles: str | None,
+    base_payload: _AttemptBasePayload,
+    geometry: GeometryConfig,
+    *,
+    rdkit_version: str,
+    start: float,
+) -> GeometryAttemptRecord:
     if input_smiles is None or input_smiles.strip() == "":
         return _failed_attempt(
             base_payload,
@@ -464,11 +499,24 @@ def attempt_geometry_record(
         )
 
     molecule = Chem.AddHs(molecule)
-    embed_status = AllChem.EmbedMolecule(
-        molecule,
-        maxAttempts=geometry.embed_attempts,
-        randomSeed=geometry.random_seed,
-    )
+    try:
+        with Chem.rdBase.BlockLogs():
+            embed_status = AllChem.EmbedMolecule(
+                molecule,
+                maxAttempts=geometry.embed_attempts,
+                randomSeed=geometry.random_seed,
+            )
+    except Exception as error:
+        return _failed_attempt(
+            base_payload,
+            geometry,
+            rdkit_version=rdkit_version,
+            start=start,
+            failure_type="embedding_failed",
+            message=f"RDKit ETKDG embedding failed: {error}",
+            stage="embedding",
+            recommended_action="Try a capped input representation or inspect the molecule.",
+        )
     if embed_status != 0:
         return _failed_attempt(
             base_payload,
@@ -481,7 +529,21 @@ def attempt_geometry_record(
             recommended_action="Try a capped input representation or inspect the molecule.",
         )
 
-    optimization_status = _optimize_molecule(molecule, geometry)
+    try:
+        optimization_status = _optimize_molecule(molecule, geometry)
+    except Exception as error:
+        return _failed_attempt(
+            base_payload,
+            geometry,
+            rdkit_version=rdkit_version,
+            start=start,
+            failure_type="optimization_failed",
+            message=f"RDKit MMFF optimization failed: {error}",
+            stage="optimization",
+            recommended_action="Inspect the molecule or try a fallback geometry method.",
+            embedding_status="success",
+            optimization_status="failed",
+        )
     if optimization_status == "failed":
         return _failed_attempt(
             base_payload,
@@ -496,7 +558,7 @@ def attempt_geometry_record(
             optimization_status=optimization_status,
         )
 
-    molecule.SetProp("_Name", chemistry_record.sample_id)
+    molecule.SetProp("_Name", base_payload["sample_id"])
     sdf_text = Chem.MolToMolBlock(molecule) + "\n$$$$\n"
     return GeometryAttemptRecord(
         **base_payload,
@@ -511,6 +573,27 @@ def attempt_geometry_record(
         sdf_text=sdf_text,
         fallback_provenance=_fallback_provenance(geometry, rdkit_succeeded=True),
     )
+
+
+@contextmanager
+def _geometry_timeout(timeout_seconds: float | None) -> Iterator[None]:
+    if timeout_seconds is None:
+        yield
+        return
+
+    def raise_timeout(_: int, __: FrameType | None) -> None:
+        raise TimeoutError(f"geometry attempt timed out after {timeout_seconds} seconds")
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.setitimer(signal.ITIMER_REAL, timeout_seconds)
+    signal.signal(signal.SIGALRM, raise_timeout)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        if previous_timer[0] > 0:
+            signal.setitimer(signal.ITIMER_REAL, previous_timer[0], previous_timer[1])
 
 
 def _selected_input_smiles(

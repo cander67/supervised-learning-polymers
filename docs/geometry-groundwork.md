@@ -58,3 +58,26 @@ version. Metadata also repeats readable chemistry provenance such as capping str
 version, and selected geometry input representation so reviewers can inspect outputs without
 decoding hashes.
 
+## Geometry Feasibility Script
+
+Run geometry feasibility from a persisted chemistry audit bundle with:
+
+```bash
+slp-geometry-feasibility artifacts/chemistry/chemistry-audit-v1 \
+  --output-root artifacts \
+  --geometry-config-id geometry-rdkit-v1 \
+  --input-representation capped_smiles
+```
+
+The command accepts either a chemistry artifact directory or its `records.json` path. It reads the
+sibling `metadata.json`, attempts geometry only for chemistry records with `status = valid`, writes a
+geometry bundle, and prints total chemistry-valid inputs, attempted records, successes, failures,
+skipped chemistry failures, coverage percentage, and runtime.
+
+Useful options include `--input-representation`, `--random-seed`, `--embed-attempts`,
+`--optimization-max-iterations`, `--timeout-seconds`, and `--fallback-methods`. Fallback methods are
+recorded as provenance only unless later phases install/configure real fallback runners.
+
+The full training-set feasibility run is intentionally outside default pytest. When local training
+data is available, generate or reuse a PRD 3 chemistry audit bundle first, then run geometry
+feasibility from that bundle.

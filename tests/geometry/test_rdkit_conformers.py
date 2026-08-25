@@ -247,6 +247,64 @@ def test_malformed_selected_geometry_input_becomes_structured_parse_failure() ->
     assert record.failure.stage == "parse"
 
 
+def test_rdkit_embedding_exception_becomes_structured_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_embed(*_: object, **__: object) -> int:
+        raise RuntimeError("bad lower bound")
+
+    monkeypatch.setattr(geometry_module.AllChem, "EmbedMolecule", fail_embed)
+    chemistry = ChemistryAuditConfig(config_id="chemistry-fixture-v1")
+    chemistry_record = audit_dataset_row(
+        {"id": "poly-ethanol", "SMILES": "CCO"},
+        _dataset(),
+        row_index=0,
+        chemistry=chemistry,
+    )
+
+    record = attempt_geometry_record(
+        chemistry_record,
+        chemistry,
+        GeometryConfig(config_id="geometry-rdkit-v1"),
+        rdkit_version="test-rdkit-version",
+    )
+
+    assert record.status == "failed"
+    assert record.failure is not None
+    assert record.failure.failure_type == "embedding_failed"
+    assert record.failure.stage == "embedding"
+    assert "bad lower bound" in record.failure.message
+
+
+def test_rdkit_embedding_timeout_becomes_structured_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def timeout_embed(*_: object, **__: object) -> int:
+        raise TimeoutError("geometry attempt timed out after 1.0 seconds")
+
+    monkeypatch.setattr(geometry_module.AllChem, "EmbedMolecule", timeout_embed)
+    chemistry = ChemistryAuditConfig(config_id="chemistry-fixture-v1")
+    chemistry_record = audit_dataset_row(
+        {"id": "poly-ethanol", "SMILES": "CCO"},
+        _dataset(),
+        row_index=0,
+        chemistry=chemistry,
+    )
+
+    record = attempt_geometry_record(
+        chemistry_record,
+        chemistry,
+        GeometryConfig(config_id="geometry-rdkit-v1", timeout_seconds=1.0),
+        rdkit_version="test-rdkit-version",
+    )
+
+    assert record.status == "failed"
+    assert record.failure is not None
+    assert record.failure.failure_type == "embedding_failed"
+    assert record.failure.stage == "embedding"
+    assert "timed out" in record.failure.message
+
+
 def test_mmff_unavailable_is_recorded_in_method_provenance(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
