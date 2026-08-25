@@ -8,6 +8,7 @@ pulled forward.
 Status legend:
 
 - **Accepted**: PRD-level review has closed out and the work is available as project baseline.
+- **Active**: implementation is underway locally or on a PRD branch.
 - **Ready for review**: implemented locally and ready for PRD-level review.
 - **Planned**: PRD exists, but implementation has not started.
 - **Blocked by**: should wait for named earlier backlog items.
@@ -22,8 +23,9 @@ Status legend:
 
 ## Current Work
 
-No PRD is actively being implemented at this checkpoint. The next implementation slice should start
-from the planned backlog below.
+| Order | Status | PRD | Scope | Notes |
+| --- | --- | --- | --- | --- |
+| 4 | Active | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | Phase 1 is defining the typed geometry feasibility contract on top of PRD 03 chemistry audit records. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -33,7 +35,6 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 
 | Order | Status | PRD | Scope | Blocked by |
 | --- | --- | --- | --- | --- |
-| 4 | Planned | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | None |
 | 5 | Planned | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | PRD 04 for the first useful SMILES/2D/3D slice; PRD 09 for complete graph artifacts |
 | 6 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | None |
 | 7 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | None |
