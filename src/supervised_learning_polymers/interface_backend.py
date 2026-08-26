@@ -7,12 +7,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from json import dumps
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from supervised_learning_polymers.interface_discovery import (
     InterfaceDiscoveryArtifact,
     load_interface_discovery_artifact,
 )
+from supervised_learning_polymers.structure_viewer import StructureArtifactBundle
 
 STATIC_DIR = Path(__file__).parent / "static" / "interface_gui"
 
@@ -21,6 +22,7 @@ class InterfaceDiscoveryServer(ThreadingHTTPServer):
     """HTTP server carrying the loaded discovery artifact for request handlers."""
 
     artifact: InterfaceDiscoveryArtifact
+    artifact_path: Path
     bind_host: str
 
 
@@ -32,6 +34,7 @@ def create_interface_discovery_server(
     artifact = load_interface_discovery_artifact(artifact_path)
     server = InterfaceDiscoveryServer((host, port), InterfaceDiscoveryRequestHandler)
     server.artifact = artifact
+    server.artifact_path = Path(artifact_path)
     server.bind_host = host
     return server
 
@@ -42,11 +45,31 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
     server: InterfaceDiscoveryServer
 
     def do_GET(self) -> None:
-        route = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        route = parsed.path
         if route == "/api/health":
             self._send_json({"status": "ok"})
         elif route == "/api/artifact":
             self._send_json(self.server.artifact.model_dump(mode="json"))
+        elif route == "/api/structures":
+            query = parse_qs(parsed.query).get("query", [None])[0]
+            self._send_json(self._structure_bundle().list_structures(query).model_dump(mode="json"))
+        elif route.startswith("/api/structures/") and route.endswith("/geometry.sdf"):
+            sample_id = unquote(
+                route.removeprefix("/api/structures/").removesuffix("/geometry.sdf")
+            ).strip("/")
+            sdf_text = self._structure_bundle().sdf_text(sample_id)
+            if sdf_text is None:
+                self.send_error(HTTPStatus.NOT_FOUND, "Structure geometry not found")
+            else:
+                self._send_text(sdf_text, "chemical/x-mdl-sdfile")
+        elif route.startswith("/api/structures/"):
+            sample_id = unquote(route.removeprefix("/api/structures/")).strip("/")
+            detail = self._structure_bundle().structure_detail(sample_id)
+            if detail is None:
+                self.send_error(HTTPStatus.NOT_FOUND, "Structure not found")
+            else:
+                self._send_json(detail.model_dump(mode="json"))
         elif route in {"/", "/index.html"}:
             self._send_static_file("index.html")
         elif route in {"/app.js", "/styles.css"}:
@@ -80,6 +103,9 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
             ".js": "text/javascript",
         }.get(path.suffix, "application/octet-stream")
         self._send_text(path.read_text(), content_type)
+
+    def _structure_bundle(self) -> StructureArtifactBundle:
+        return StructureArtifactBundle(self.server.artifact, self.server.artifact_path)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

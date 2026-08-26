@@ -1,0 +1,106 @@
+[
+  {
+    "sample_id": "poly-0001",
+    "raw_smiles": "CCO",
+    "status": "valid",
+    "canonical_smiles": "CCO",
+    "standardized_smiles": "CCO",
+    "capped_smiles": "CCO",
+    "attachment_points": [],
+    "failure": null
+  },
+  {
+    "sample_id": "poly-0002",
+    "raw_smiles": "*CC*",
+    "status": "valid",
+    "canonical_smiles": "*CC*",
+    "standardized_smiles": "*CC*",
+    "capped_smiles": "[H]CC[H]",
+    "attachment_points": [
+      "*:0",
+      "*:3"
+    ],
+    "failure": null
+  },
+  {
+    "sample_id": "poly-0003",
+    "raw_smiles": "benzene-candidate",
+    "status": "valid",
+    "canonical_smiles": "c1ccccc1",
+    "standardized_smiles": "c1ccccc1",
+    "capped_smiles": "c1ccccc1",
+    "attachment_points": [],
+    "failure": null
+  },
+  {
+    "sample_id": "poly-0004",
+    "raw_smiles": "not-a-smiles",
+    "status": "failed",
+    "canonical_smiles": null,
+    "standardized_smiles": null,
+    "capped_smiles": null,
+    "attachment_points": [],
+    "failure": {
+      "sample_id": "poly-0004",
+      "raw_smiles": "not-a-smiles",
+      "failure_type": "parse_error",
+      "message": "RDKit could not parse source SMILES.",
+      "stage": "parse"
+    }
+  },
+  {
+    "sample_id": "poly-0005",
+    "raw_smiles": "CCN",
+    "status": "valid",
+    "canonical_smiles": "CCN",
+    "standardized_smiles": "CCN",
+    "capped_smiles": "CCN",
+    "attachment_points": [],
+    "failure": null
+  },
+  {
+    "sample_id": "poly-0006",
+    "raw_smiles": "*C(C)(C)C*",
+    "status": "valid",
+    "canonical_smiles": "*C(*)C(C)C",
+    "standardized_smiles": "*C(*)C(C)C",
+    "capped_smiles": "[H]C([H])C(C)C",
+    "attachment_points": [
+      "*:0",
+      "*:5"
+    ],
+    "failure": null
+  },
+  {
+    "sample_id": "poly-0007",
+    "raw_smiles": "standardization-error",
+    "status": "failed",
+    "canonical_smiles": null,
+    "standardized_smiles": null,
+    "capped_smiles": null,
+    "attachment_points": [],
+    "failure": {
+      "sample_id": "poly-0007",
+      "raw_smiles": "standardization-error",
+      "failure_type": "standardization_error",
+      "message": "RDKit standardization failed: fixture error.",
+      "stage": "standardization"
+    }
+  },
+  {
+    "sample_id": "poly-0008",
+    "raw_smiles": "*invalid-cap*",
+    "status": "failed",
+    "canonical_smiles": null,
+    "standardized_smiles": null,
+    "capped_smiles": null,
+    "attachment_points": [],
+    "failure": {
+      "sample_id": "poly-0008",
+      "raw_smiles": "*invalid-cap*",
+      "failure_type": "capping_error",
+      "message": "RDKit capping failed: fixture error.",
+      "stage": "capping"
+    }
+  }
+]

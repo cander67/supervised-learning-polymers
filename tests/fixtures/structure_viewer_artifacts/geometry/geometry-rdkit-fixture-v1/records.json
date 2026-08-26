@@ -1,0 +1,118 @@
+[
+  {
+    "sample_id": "poly-0001",
+    "chemistry_config_id": "chemistry-audit-fixture-v1",
+    "input_representation": "capped_smiles",
+    "selected_input_smiles": "CCO",
+    "raw_smiles": "CCO",
+    "canonical_smiles": "CCO",
+    "standardized_smiles": "CCO",
+    "capped_smiles": "CCO",
+    "attachment_points": [],
+    "status": "success",
+    "method": {
+      "method_name": "rdkit_etkdg_mmff",
+      "rdkit_version": "test-rdkit-version",
+      "embedding_status": "success",
+      "optimization_status": "converged"
+    },
+    "timing": {
+      "runtime_seconds": 0.021
+    },
+    "sdf_text": "poly-0001\n  RDKit          3D\n\n  3  2  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.5000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.1000    1.2000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n  1  2  1  0\n  2  3  1  0\nM  END\n$$$$\n",
+    "failure": null,
+    "fallback_provenance": []
+  },
+  {
+    "sample_id": "poly-0002",
+    "chemistry_config_id": "chemistry-audit-fixture-v1",
+    "input_representation": "capped_smiles",
+    "selected_input_smiles": "[H]CC[H]",
+    "raw_smiles": "*CC*",
+    "canonical_smiles": "*CC*",
+    "standardized_smiles": "*CC*",
+    "capped_smiles": "[H]CC[H]",
+    "attachment_points": [
+      "*:0",
+      "*:3"
+    ],
+    "status": "success",
+    "method": {
+      "method_name": "rdkit_etkdg_mmff",
+      "rdkit_version": "test-rdkit-version",
+      "embedding_status": "success",
+      "optimization_status": "converged"
+    },
+    "timing": {
+      "runtime_seconds": 0.034
+    },
+    "sdf_text": "poly-0002\n  RDKit          3D\n\n  2  1  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.5000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n  1  2  1  0\nM  END\n$$$$\n",
+    "failure": null,
+    "fallback_provenance": []
+  },
+  {
+    "sample_id": "poly-0006",
+    "chemistry_config_id": "chemistry-audit-fixture-v1",
+    "input_representation": "capped_smiles",
+    "selected_input_smiles": "[H]C([H])C(C)C",
+    "raw_smiles": "*C(C)(C)C*",
+    "canonical_smiles": "*C(*)C(C)C",
+    "standardized_smiles": "*C(*)C(C)C",
+    "capped_smiles": "[H]C([H])C(C)C",
+    "attachment_points": [
+      "*:0",
+      "*:5"
+    ],
+    "status": "failed",
+    "method": {
+      "method_name": "rdkit_etkdg_mmff",
+      "rdkit_version": "test-rdkit-version",
+      "embedding_status": "failed",
+      "optimization_status": null
+    },
+    "timing": {
+      "runtime_seconds": 0.112
+    },
+    "sdf_text": null,
+    "failure": {
+      "sample_id": "poly-0006",
+      "method_name": "rdkit_etkdg_mmff",
+      "failure_type": "embedding_failed",
+      "message": "RDKit ETKDG embedding failed with status -1.",
+      "stage": "embedding",
+      "recommended_action": "Try a capped input representation or inspect the molecule."
+    },
+    "fallback_provenance": []
+  },
+  {
+    "sample_id": "poly-0009",
+    "chemistry_config_id": "chemistry-audit-fixture-v1",
+    "input_representation": "capped_smiles",
+    "selected_input_smiles": "C1CCCCCCCCCCCC1",
+    "raw_smiles": "C1CCCCCCCCCCCC1",
+    "canonical_smiles": "C1CCCCCCCCCCCC1",
+    "standardized_smiles": "C1CCCCCCCCCCCC1",
+    "capped_smiles": "C1CCCCCCCCCCCC1",
+    "attachment_points": [],
+    "status": "failed",
+    "method": {
+      "method_name": "rdkit_etkdg_mmff",
+      "rdkit_version": "test-rdkit-version",
+      "embedding_status": "failed",
+      "optimization_status": null
+    },
+    "timing": {
+      "runtime_seconds": 0.151
+    },
+    "sdf_text": null,
+    "failure": {
+      "sample_id": "poly-0009",
+      "method_name": "rdkit_etkdg_mmff",
+      "failure_type": "embedding_failed",
+      "message": "RDKit ETKDG embedding failed with status -1.",
+      "stage": "embedding",
+      "recommended_action": "Try a capped input representation or inspect the molecule."
+    },
+    "fallback_provenance": []
+  }
+]

@@ -40,6 +40,16 @@ from supervised_learning_polymers.manifest import (
     ConfigReference,
     DatasetConfig,
 )
+from supervised_learning_polymers.structure_viewer import (
+    StructureArtifactBundle,
+    StructureGeometryFailurePayload,
+    StructureGeometryPayload,
+    StructureListResponse,
+    StructureProvenance,
+    StructureRecordDetail,
+    StructureRecordSummary,
+    StructureSmilesPayload,
+)
 from supervised_learning_polymers.targets import (
     OPEN_POLYMER_TARGET_ORDER,
     SEQUENTIAL_POC_ORDER,
@@ -88,6 +98,14 @@ __all__ = [
     "SequentialTargetMode",
     "SingleTargetMode",
     "StandardizationConfig",
+    "StructureArtifactBundle",
+    "StructureGeometryFailurePayload",
+    "StructureGeometryPayload",
+    "StructureListResponse",
+    "StructureProvenance",
+    "StructureRecordDetail",
+    "StructureRecordSummary",
+    "StructureSmilesPayload",
     "TargetConfig",
     "TargetMetadata",
     "TargetModeSummary",

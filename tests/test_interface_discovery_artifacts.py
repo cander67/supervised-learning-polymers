@@ -62,10 +62,11 @@ def test_interface_discovery_fixture_includes_geometry_summary_for_viewer_workbe
     geometry = artifact.geometry_summary
     assert isinstance(geometry, GeometrySummary)
     assert geometry.total_chemistry_valid_records == 5
-    assert geometry.attempted_records == 5
-    assert geometry.successful_records == 3
+    assert geometry.attempted_records == 4
+    assert geometry.successful_records == 2
     assert geometry.failed_records == 2
-    assert geometry.coverage_fraction == 0.6
+    assert geometry.skipped_records == 1
+    assert geometry.coverage_fraction == 0.4
     assert {group.failure_type: group.count for group in geometry.failure_groups} == {
         "embedding_failed": 2
     }
