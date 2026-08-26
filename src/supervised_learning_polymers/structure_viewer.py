@@ -19,6 +19,13 @@ GeometryViewerStatus = Literal[
     "artifact_missing",
     "chemistry_failed",
 ]
+StructureStatusFilter = Literal[
+    "all",
+    "geometry_success",
+    "geometry_failure",
+    "not_generated",
+    "chemistry_failed",
+]
 
 
 class StructureSmilesPayload(ContractModel):
@@ -102,10 +109,14 @@ class StructureArtifactBundle:
         self._chemistry_records = _load_chemistry_records(artifact, self.artifact_path)
         self._geometry_records = _load_geometry_records(artifact, self.artifact_path)
 
-    def list_structures(self, query: str | None = None) -> StructureListResponse:
+    def list_structures(
+        self,
+        query: str | None = None,
+        status_filter: StructureStatusFilter = "all",
+    ) -> StructureListResponse:
         records = tuple(self._detail_for_record(record) for record in self._chemistry_records)
         summaries = tuple(_summary_from_detail(record) for record in records)
-        filtered = _filter_summaries(summaries, records, query)
+        filtered = _filter_summaries(summaries, records, query, status_filter)
         return StructureListResponse(
             total_records=len(summaries),
             returned_records=len(filtered),
@@ -283,14 +294,32 @@ def _filter_summaries(
     summaries: tuple[StructureRecordSummary, ...],
     details: tuple[StructureRecordDetail, ...],
     query: str | None,
+    status_filter: StructureStatusFilter,
 ) -> tuple[StructureRecordSummary, ...]:
+    matching_status = tuple(
+        summary for summary in summaries if _matches_status_filter(summary, status_filter)
+    )
     if query is None or query.strip() == "":
-        return summaries
+        return matching_status
     needle = query.casefold()
     matched_ids = {
         detail.sample_id for detail in details if needle in _search_text(detail).casefold()
     }
-    return tuple(summary for summary in summaries if summary.sample_id in matched_ids)
+    return tuple(summary for summary in matching_status if summary.sample_id in matched_ids)
+
+
+def _matches_status_filter(
+    summary: StructureRecordSummary, status_filter: StructureStatusFilter
+) -> bool:
+    if status_filter == "all":
+        return True
+    if status_filter == "geometry_success":
+        return summary.geometry_status == "success"
+    if status_filter == "geometry_failure":
+        return summary.geometry_status == "failed"
+    if status_filter == "not_generated":
+        return summary.geometry_status in {"not_generated", "artifact_missing"}
+    return summary.geometry_status == "chemistry_failed"
 
 
 def _search_text(detail: StructureRecordDetail) -> str:

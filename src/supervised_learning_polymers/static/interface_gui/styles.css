@@ -94,6 +94,7 @@ label {
   font-size: 0.9rem;
 }
 
+input,
 select {
   min-width: 150px;
   border: 1px solid #b8c5be;
@@ -101,6 +102,10 @@ select {
   background: #fff;
   color: #1f2933;
   padding: 7px 9px;
+}
+
+button {
+  font: inherit;
 }
 
 .status-pill {
@@ -170,6 +175,128 @@ select {
   margin-bottom: 14px;
 }
 
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.inline-state {
+  margin-bottom: 12px;
+  color: #53656f;
+  font-size: 0.92rem;
+}
+
+.inline-state[data-state="error"] {
+  color: #b42318;
+}
+
+.inline-state[data-state="empty"] {
+  color: #7a4b00;
+}
+
+.structure-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.82fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.structure-results table {
+  min-width: 560px;
+}
+
+.structure-detail {
+  min-width: 0;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e4e9e5;
+  padding-bottom: 12px;
+}
+
+h3 {
+  margin: 0 0 10px;
+  font-size: 0.94rem;
+  letter-spacing: 0;
+}
+
+.panel-header h3 {
+  margin-bottom: 0;
+  font-size: 1.08rem;
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.panel-grid article {
+  margin-top: 14px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #2457a6;
+  padding: 5px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-chip[data-status="success"],
+.status-chip[data-status="valid"] {
+  background: #eef7f0;
+  color: #126b3f;
+}
+
+.status-chip[data-status="failed"],
+.status-chip[data-status="chemistry_failed"] {
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.status-chip[data-status="not_generated"],
+.status-chip[data-status="artifact_missing"],
+.status-chip[data-status="unavailable"] {
+  background: #fff7e6;
+  color: #7a4b00;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: #1b5d7a;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 800;
+  text-align: left;
+}
+
+.link-button:focus-visible {
+  outline: 2px solid #2457a6;
+  outline-offset: 3px;
+}
+
+.selected-row {
+  background: #eef7f0;
+}
+
+.smiles-cell,
+.structure-detail .field span:last-child {
+  overflow-wrap: anywhere;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -212,7 +339,14 @@ th {
   }
 
   .summary-grid,
-  .counts {
+  .counts,
+  .structure-grid,
+  .panel-grid {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    justify-content: flex-start;
+    margin-top: 12px;
   }
 }

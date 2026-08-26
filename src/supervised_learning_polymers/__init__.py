@@ -49,6 +49,7 @@ from supervised_learning_polymers.structure_viewer import (
     StructureRecordDetail,
     StructureRecordSummary,
     StructureSmilesPayload,
+    StructureStatusFilter,
 )
 from supervised_learning_polymers.targets import (
     OPEN_POLYMER_TARGET_ORDER,
@@ -106,6 +107,7 @@ __all__ = [
     "StructureRecordDetail",
     "StructureRecordSummary",
     "StructureSmilesPayload",
+    "StructureStatusFilter",
     "TargetConfig",
     "TargetMetadata",
     "TargetModeSummary",

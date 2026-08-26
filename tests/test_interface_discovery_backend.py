@@ -61,11 +61,26 @@ def test_backend_serves_static_gui_assets() -> None:
     assert '<div id="target-mode"></div>' in index
     assert 'id="geometry-summary"' in index
     assert 'id="metric-filter"' in index
+    assert 'id="structure-browser"' in index
+    assert 'id="structure-search"' in index
+    assert 'id="structure-filter"' in index
+    assert 'id="structure-rows"' in index
+    assert 'id="structure-smiles-panel"' in index
+    assert 'id="structure-status-panel"' in index
+    assert 'id="structure-provenance-panel"' in index
+    assert 'id="structure-panel-states"' in index
     assert 'fetch("/api/artifact")' in app_js
+    assert "loadStructures" in app_js
+    assert "selectStructure" in app_js
+    assert "state.structureFilter" in app_js
+    assert "state.structureQuery" in app_js
+    assert "No structures match the current search and status filter" in app_js
     assert "renderGeometrySummary" in app_js
     assert "renderMetricRows" in app_js
     assert "run-interface-discovery-fixture-001" not in app_js
     assert ".summary-grid" in css
+    assert ".structure-grid" in css
+    assert ".selected-row" in css
 
 
 def test_backend_serves_searchable_structure_summaries() -> None:
@@ -96,6 +111,29 @@ def test_structure_search_filters_by_sample_id_and_smiles_text() -> None:
 
     assert [record["sample_id"] for record in by_id["records"]] == ["poly-0006"]
     assert [record["sample_id"] for record in by_smiles["records"]] == ["poly-0003"]
+
+
+def test_structure_status_filter_returns_fixture_backed_browser_states() -> None:
+    with running_server() as base_url:
+        successes = loads(fetch_text(f"{base_url}/api/structures?status=geometry_success"))
+        failures = loads(fetch_text(f"{base_url}/api/structures?status=geometry_failure"))
+        not_generated = loads(fetch_text(f"{base_url}/api/structures?status=not_generated"))
+        chemistry_failed = loads(fetch_text(f"{base_url}/api/structures?status=chemistry_failed"))
+
+    assert [record["sample_id"] for record in successes["records"]] == [
+        "poly-0001",
+        "poly-0002",
+    ]
+    assert [record["sample_id"] for record in failures["records"]] == ["poly-0006"]
+    assert [record["sample_id"] for record in not_generated["records"]] == [
+        "poly-0003",
+        "poly-0005",
+    ]
+    assert [record["sample_id"] for record in chemistry_failed["records"]] == [
+        "poly-0004",
+        "poly-0007",
+        "poly-0008",
+    ]
 
 
 def test_backend_serves_successful_structure_detail() -> None:

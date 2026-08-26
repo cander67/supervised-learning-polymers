@@ -13,7 +13,10 @@ from supervised_learning_polymers.interface_discovery import (
     InterfaceDiscoveryArtifact,
     load_interface_discovery_artifact,
 )
-from supervised_learning_polymers.structure_viewer import StructureArtifactBundle
+from supervised_learning_polymers.structure_viewer import (
+    StructureArtifactBundle,
+    StructureStatusFilter,
+)
 
 STATIC_DIR = Path(__file__).parent / "static" / "interface_gui"
 
@@ -52,8 +55,14 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
         elif route == "/api/artifact":
             self._send_json(self.server.artifact.model_dump(mode="json"))
         elif route == "/api/structures":
-            query = parse_qs(parsed.query).get("query", [None])[0]
-            self._send_json(self._structure_bundle().list_structures(query).model_dump(mode="json"))
+            params = parse_qs(parsed.query)
+            query = params.get("query", [None])[0]
+            status_filter = _structure_status_filter(params.get("status", ["all"])[0])
+            self._send_json(
+                self._structure_bundle()
+                .list_structures(query, status_filter)
+                .model_dump(mode="json")
+            )
         elif route.startswith("/api/structures/") and route.endswith("/geometry.sdf"):
             sample_id = unquote(
                 route.removeprefix("/api/structures/").removesuffix("/geometry.sdf")
@@ -128,6 +137,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         server.server_close()
     return 0
+
+
+def _structure_status_filter(value: str | None) -> StructureStatusFilter:
+    if value == "geometry_success":
+        return "geometry_success"
+    if value == "geometry_failure":
+        return "geometry_failure"
+    if value == "not_generated":
+        return "not_generated"
+    if value == "chemistry_failed":
+        return "chemistry_failed"
+    return "all"
 
 
 if __name__ == "__main__":

@@ -2,6 +2,10 @@ const state = {
   artifact: null,
   failureFilter: "all",
   metricFilter: "all",
+  structureFilter: "all",
+  structureQuery: "",
+  structureRows: [],
+  selectedStructureId: null,
 };
 
 const text = (value) => document.createTextNode(value);
@@ -45,6 +49,29 @@ function cell(value, className = "") {
   if (className) td.className = className;
   td.appendChild(text(value));
   return td;
+}
+
+function buttonCell(label, onClick) {
+  const td = document.createElement("td");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "link-button";
+  button.appendChild(text(label));
+  button.addEventListener("click", onClick);
+  td.appendChild(button);
+  return td;
+}
+
+function statusChip(value) {
+  const span = document.createElement("span");
+  span.className = "status-chip";
+  span.dataset.status = value;
+  span.appendChild(text(statusLabel(value)));
+  return span;
+}
+
+function statusLabel(value) {
+  return value.replaceAll("_", " ");
 }
 
 function renderArtifact(artifact) {
@@ -103,6 +130,7 @@ function renderArtifact(artifact) {
   renderMetricRows();
   renderMetricSummary();
   renderLeaderboardRows();
+  loadStructures();
 }
 
 function renderGeometrySummary(geometry) {
@@ -238,6 +266,155 @@ function renderFailureRows() {
   });
 }
 
+function structureQueryString() {
+  const params = new URLSearchParams();
+  if (state.structureQuery.trim()) params.set("query", state.structureQuery.trim());
+  if (state.structureFilter !== "all") params.set("status", state.structureFilter);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+function setStructureState(message, mode = "info") {
+  const element = document.getElementById("structure-state");
+  element.textContent = message;
+  element.dataset.state = mode;
+}
+
+function loadStructures() {
+  setStructureState("Loading structures");
+  fetch(`/api/structures${structureQueryString()}`)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Structure request failed: ${response.status}`);
+      return response.json();
+    })
+    .then((payload) => {
+      state.structureRows = payload.records;
+      renderStructureRows(payload.records);
+      if (!payload.records.length) {
+        setStructureState("No structures match the current search and status filter", "empty");
+        renderEmptyStructureDetail();
+        return;
+      }
+      setStructureState(
+        `${payload.returned_records.toLocaleString()} of ${payload.total_records.toLocaleString()} structures`,
+      );
+      const selected = payload.records.find(
+        (record) => record.sample_id === state.selectedStructureId,
+      );
+      selectStructure((selected || payload.records[0]).sample_id);
+    })
+    .catch((error) => {
+      setStructureState(error.message, "error");
+      renderStructureRows([]);
+      renderEmptyStructureDetail();
+    });
+}
+
+function renderStructureRows(records) {
+  renderTable("structure-rows", records, (record) => {
+    const tr = document.createElement("tr");
+    if (record.sample_id === state.selectedStructureId) tr.className = "selected-row";
+    tr.append(
+      buttonCell(record.sample_id, () => selectStructure(record.sample_id)),
+      cell(statusLabel(record.chemistry_status)),
+      cell(statusLabel(record.geometry_status)),
+      cell(record.display_smiles || "n/a", "smiles-cell"),
+    );
+    return tr;
+  });
+}
+
+function selectStructure(sampleId) {
+  state.selectedStructureId = sampleId;
+  fetch(`/api/structures/${encodeURIComponent(sampleId)}`)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Structure detail failed: ${response.status}`);
+      return response.json();
+    })
+    .then((detail) => renderStructureDetail(detail))
+    .catch((error) => {
+      setStructureState(error.message, "error");
+      renderEmptyStructureDetail();
+    });
+}
+
+function renderStructureDetail(detail) {
+  setText("structure-selected-title", detail.sample_id);
+  const selectedStatus = document.getElementById("structure-selected-status");
+  selectedStatus.textContent = statusLabel(detail.geometry.status);
+  selectedStatus.dataset.status = detail.geometry.status;
+
+  renderList("structure-smiles-panel", [
+    field("Raw", detail.smiles.raw || "n/a"),
+    field("Canonical", detail.smiles.canonical || "n/a"),
+    field("Standardized", detail.smiles.standardized || "n/a"),
+    field("Capped", detail.smiles.capped || "n/a"),
+    field("Geometry input", detail.smiles.selected_geometry_input || "n/a"),
+    field(
+      "Attachment points",
+      detail.smiles.attachment_points.length ? detail.smiles.attachment_points.join(", ") : "none",
+    ),
+  ]);
+
+  const statusRows = [
+    field("Chemistry", detail.chemistry_status),
+    field("Geometry", statusLabel(detail.geometry.status)),
+  ];
+  if (detail.geometry.failure) {
+    statusRows.push(
+      field("Failure", detail.geometry.failure.failure_type),
+      field("Stage", detail.geometry.failure.stage),
+      field("Message", detail.geometry.failure.message),
+      field("Action", detail.geometry.failure.recommended_action),
+    );
+  } else if (detail.chemistry_failure) {
+    statusRows.push(
+      field("Failure", detail.chemistry_failure.failure_type),
+      field("Stage", detail.chemistry_failure.stage),
+      field("Message", detail.chemistry_failure.message),
+    );
+  }
+  renderList("structure-status-panel", statusRows);
+
+  renderList("structure-provenance-panel", [
+    field("Chemistry config", detail.provenance.chemistry_config_id),
+    field("Geometry config", detail.provenance.geometry_config_id || "n/a"),
+    field("Chemistry records", detail.provenance.chemistry_records_path || "n/a"),
+    field("Geometry records", detail.provenance.geometry_records_path || "n/a"),
+  ]);
+
+  renderList("structure-panel-states", [
+    field("SMILES", detail.chemistry_status === "valid" ? "available" : "failed upstream"),
+    field("2D", detail.chemistry_status === "valid" ? "ready for Phase 3" : "failed upstream"),
+    field(
+      "3D",
+      detail.geometry.status === "success" ? "SDF payload available" : statusLabel(detail.geometry.status),
+    ),
+    field("Graph", "not yet generated"),
+  ]);
+
+  renderStructureRows(state.structureRows);
+}
+
+function renderEmptyStructureDetail() {
+  setText("structure-selected-title", "No sample selected");
+  const selectedStatus = document.getElementById("structure-selected-status");
+  selectedStatus.textContent = "Unavailable";
+  selectedStatus.dataset.status = "unavailable";
+  renderList("structure-smiles-panel", [field("Status", "No selected structure")]);
+  renderList("structure-status-panel", [field("Status", "No selected structure")]);
+  renderList("structure-provenance-panel", [
+    field("Chemistry records", state.artifact?.run_metadata.artifact_paths.chemistry_records || "n/a"),
+    field("Geometry records", state.artifact?.run_metadata.artifact_paths.geometry_records || "n/a"),
+  ]);
+  renderList("structure-panel-states", [
+    field("SMILES", "unavailable"),
+    field("2D", "unavailable"),
+    field("3D", "unavailable"),
+    field("Graph", "unavailable"),
+  ]);
+}
+
 document.getElementById("failure-filter").addEventListener("change", (event) => {
   state.failureFilter = event.target.value;
   renderFailureRows();
@@ -248,6 +425,16 @@ document.getElementById("metric-filter").addEventListener("change", (event) => {
   renderMetricRows();
   renderMetricSummary();
   renderLeaderboardRows();
+});
+
+document.getElementById("structure-search").addEventListener("input", (event) => {
+  state.structureQuery = event.target.value;
+  loadStructures();
+});
+
+document.getElementById("structure-filter").addEventListener("change", (event) => {
+  state.structureFilter = event.target.value;
+  loadStructures();
 });
 
 fetch("/api/artifact")
