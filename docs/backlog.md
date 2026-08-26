@@ -20,12 +20,13 @@ Status legend:
 | 1 | Accepted | [Benchmark Contract And Target Config](prds/01-benchmark-contract-and-target-config.md) | Typed target, dataset, manifest, and sequential leakage contract. | Closed out as the baseline contract for dataset, target, and manifest work. |
 | 2 | Accepted | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | Closed out with the GUI/backend path selected in [Public Interface Discovery Decision](interface-discovery-decision.md). |
 | 3 | Accepted | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | Closed out with the final review gate passing locally, including fixture tests, default tests, full-data audit, chemistry docs, and GUI/backend fixture alignment. |
+| 4 | Accepted | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | Closed out with the final review gate passing locally, including fixture tests, default tests, full-training-set geometry results, geometry docs, and GUI/backend fixture alignment. |
 
 ## Current Work
 
 | Order | Status | PRD | Scope | Notes |
 | --- | --- | --- | --- | --- |
-| 4 | Ready for review | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | Implemented through the typed geometry contract, RDKit ETKDG/MMFF fixture workflow, persisted artifacts, CLI, GUI/backend fixture alignment, and geometry docs. PRD 04 should remain ready for review until accepted. |
+| 5 | Active | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | Promoted after PRD 04 produced geometry summary, failure, metadata, and SDF artifact shapes for viewer validation. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -35,7 +36,6 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 
 | Order | Status | PRD | Scope | Blocked by |
 | --- | --- | --- | --- | --- |
-| 5 | Planned | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | PRD 04 for the first useful SMILES/2D/3D slice; PRD 09 for complete graph artifacts |
 | 6 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | None |
 | 7 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | None |
 | 8 | Planned | [First Reproducible Baseline Run](prds/07-first-reproducible-baseline-run.md) | Train cheap leakage-safe baselines with tracked configs, metrics, predictions, and artifacts. | PRDs 05 and 06 |
