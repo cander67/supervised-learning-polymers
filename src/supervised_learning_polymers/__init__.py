@@ -42,6 +42,8 @@ from supervised_learning_polymers.manifest import (
 )
 from supervised_learning_polymers.structure_viewer import (
     StructureArtifactBundle,
+    StructureDepictionFailurePayload,
+    StructureDepictionPayload,
     StructureGeometryFailurePayload,
     StructureGeometryPayload,
     StructureListResponse,
@@ -50,6 +52,7 @@ from supervised_learning_polymers.structure_viewer import (
     StructureRecordSummary,
     StructureSmilesPayload,
     StructureStatusFilter,
+    render_2d_svg,
 )
 from supervised_learning_polymers.targets import (
     OPEN_POLYMER_TARGET_ORDER,
@@ -102,6 +105,8 @@ __all__ = [
     "StructureArtifactBundle",
     "StructureGeometryFailurePayload",
     "StructureGeometryPayload",
+    "StructureDepictionFailurePayload",
+    "StructureDepictionPayload",
     "StructureListResponse",
     "StructureProvenance",
     "StructureRecordDetail",
@@ -120,6 +125,7 @@ __all__ = [
     "create_interface_discovery_server",
     "load_interface_discovery_artifact",
     "open_polymer_target_config",
+    "render_2d_svg",
     "standardize_molecule",
     "summarize_chemistry_records",
     "write_chemistry_audit_artifacts",

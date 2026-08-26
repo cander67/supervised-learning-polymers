@@ -63,6 +63,15 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
                 .list_structures(query, status_filter)
                 .model_dump(mode="json")
             )
+        elif route.startswith("/api/structures/") and route.endswith("/depiction.svg"):
+            sample_id = unquote(
+                route.removeprefix("/api/structures/").removesuffix("/depiction.svg")
+            ).strip("/")
+            svg_text = self._structure_bundle().depiction_svg(sample_id)
+            if svg_text is None:
+                self.send_error(HTTPStatus.NOT_FOUND, "Structure depiction not found")
+            else:
+                self._send_text(svg_text, "image/svg+xml")
         elif route.startswith("/api/structures/") and route.endswith("/geometry.sdf"):
             sample_id = unquote(
                 route.removeprefix("/api/structures/").removesuffix("/geometry.sdf")

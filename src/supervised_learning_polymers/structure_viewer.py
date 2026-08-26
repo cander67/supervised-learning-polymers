@@ -1,5 +1,6 @@
 """Structure viewer contracts joining chemistry and geometry artifacts."""
 
+from importlib import import_module
 from json import loads
 from pathlib import Path
 from typing import Literal
@@ -26,6 +27,18 @@ StructureStatusFilter = Literal[
     "not_generated",
     "chemistry_failed",
 ]
+DepictionViewerStatus = Literal["available", "upstream_failed", "missing_smiles", "render_failed"]
+SmilesVariantKind = Literal[
+    "raw",
+    "canonical",
+    "standardized",
+    "capped",
+    "selected_geometry_input",
+]
+
+Chem: object = import_module("rdkit.Chem")
+rdDepictor: object = import_module("rdkit.Chem.rdDepictor")
+rdMolDraw2D: object = import_module("rdkit.Chem.Draw.rdMolDraw2D")
 
 
 class StructureSmilesPayload(ContractModel):
@@ -37,6 +50,16 @@ class StructureSmilesPayload(ContractModel):
     capped: str | None = None
     selected_geometry_input: str | None = None
     attachment_points: tuple[str, ...] = Field(default_factory=tuple)
+    variants: tuple["StructureSmilesVariant", ...] = Field(default_factory=tuple)
+
+
+class StructureSmilesVariant(ContractModel):
+    """One displayable SMILES variant with comparison state."""
+
+    name: SmilesVariantKind
+    label: str = Field(min_length=1)
+    value: str | None = None
+    state: Literal["missing", "unchanged", "changed", "selected"]
 
 
 class StructureProvenance(ContractModel):
@@ -70,6 +93,23 @@ class StructureGeometryPayload(ContractModel):
     fallback_provenance: tuple[dict[str, object], ...] = Field(default_factory=tuple)
 
 
+class StructureDepictionFailurePayload(ContractModel):
+    """2D depiction failure normalized for GUI display."""
+
+    failure_type: DepictionViewerStatus
+    message: str = Field(min_length=1)
+    recommended_action: str = Field(min_length=1)
+
+
+class StructureDepictionPayload(ContractModel):
+    """2D depiction state for a selected structure."""
+
+    status: DepictionViewerStatus
+    source_smiles: str | None = None
+    payload_ref: str | None = None
+    failure: StructureDepictionFailurePayload | None = None
+
+
 class StructureRecordSummary(ContractModel):
     """Search-result row for a structure record."""
 
@@ -88,6 +128,7 @@ class StructureRecordDetail(ContractModel):
     smiles: StructureSmilesPayload
     provenance: StructureProvenance
     geometry: StructureGeometryPayload
+    depiction: StructureDepictionPayload
     chemistry_failure: ChemistryFailureRecord | None = None
 
 
@@ -139,6 +180,13 @@ class StructureArtifactBundle:
             return None
         return detail.geometry.sdf_text
 
+    def depiction_svg(self, sample_id: str) -> str | None:
+        detail = self.structure_detail(sample_id)
+        if detail is None or detail.depiction.status != "available":
+            return None
+        assert detail.depiction.source_smiles is not None
+        return render_2d_svg(detail.depiction.source_smiles)
+
     def _detail_for_record(self, chemistry_record: ChemistryAuditRecord) -> StructureRecordDetail:
         geometry_record = (
             None
@@ -162,6 +210,7 @@ class StructureArtifactBundle:
                 ),
             ),
             geometry=_geometry_payload(chemistry_record, geometry_record, self._geometry_records),
+            depiction=_depiction_payload(chemistry_record),
             chemistry_failure=chemistry_failure,
         )
 
@@ -221,16 +270,111 @@ def _smiles_payload(
     chemistry_record: ChemistryAuditRecord,
     geometry_record: GeometryAttemptRecord | None,
 ) -> StructureSmilesPayload:
+    selected_input = geometry_record.selected_input_smiles if geometry_record is not None else None
     return StructureSmilesPayload(
         raw=chemistry_record.raw_smiles,
         canonical=chemistry_record.canonical_smiles,
         standardized=chemistry_record.standardized_smiles,
         capped=chemistry_record.capped_smiles,
-        selected_geometry_input=(
-            geometry_record.selected_input_smiles if geometry_record is not None else None
-        ),
+        selected_geometry_input=selected_input,
         attachment_points=chemistry_record.attachment_points,
+        variants=_smiles_variants(chemistry_record, selected_input),
     )
+
+
+def _smiles_variants(
+    chemistry_record: ChemistryAuditRecord,
+    selected_input: str | None,
+) -> tuple[StructureSmilesVariant, ...]:
+    values: tuple[tuple[SmilesVariantKind, str, str | None], ...] = (
+        ("raw", "Raw", chemistry_record.raw_smiles),
+        ("canonical", "Canonical", chemistry_record.canonical_smiles),
+        ("standardized", "Standardized", chemistry_record.standardized_smiles),
+        ("capped", "Capped", chemistry_record.capped_smiles),
+        ("selected_geometry_input", "Geometry input", selected_input),
+    )
+    baseline = chemistry_record.raw_smiles
+    return tuple(
+        StructureSmilesVariant(
+            name=name,
+            label=label,
+            value=value,
+            state=_smiles_variant_state(name, value, baseline),
+        )
+        for name, label, value in values
+    )
+
+
+def _smiles_variant_state(
+    name: SmilesVariantKind, value: str | None, baseline: str | None
+) -> Literal["missing", "unchanged", "changed", "selected"]:
+    if value is None:
+        return "missing"
+    if name == "selected_geometry_input":
+        return "selected"
+    if baseline is None or value != baseline:
+        return "changed"
+    return "unchanged"
+
+
+def _depiction_payload(chemistry_record: ChemistryAuditRecord) -> StructureDepictionPayload:
+    if chemistry_record.status == "failed":
+        return StructureDepictionPayload(
+            status="upstream_failed",
+            failure=StructureDepictionFailurePayload(
+                failure_type="upstream_failed",
+                message="Chemistry processing failed before a 2D depiction input was available.",
+                recommended_action="Inspect the chemistry failure before reviewing 2D structure.",
+            ),
+        )
+
+    source_smiles = (
+        chemistry_record.capped_smiles
+        or chemistry_record.standardized_smiles
+        or chemistry_record.canonical_smiles
+    )
+    if source_smiles is None:
+        return StructureDepictionPayload(
+            status="missing_smiles",
+            failure=StructureDepictionFailurePayload(
+                failure_type="missing_smiles",
+                message="No validated SMILES representation is available for 2D depiction.",
+                recommended_action="Inspect upstream chemistry artifacts for missing derived SMILES.",
+            ),
+        )
+
+    try:
+        render_2d_svg(source_smiles)
+    except ValueError as error:
+        return StructureDepictionPayload(
+            status="render_failed",
+            source_smiles=source_smiles,
+            failure=StructureDepictionFailurePayload(
+                failure_type="render_failed",
+                message=str(error),
+                recommended_action="Inspect the selected SMILES representation for depiction.",
+            ),
+        )
+
+    return StructureDepictionPayload(
+        status="available",
+        source_smiles=source_smiles,
+        payload_ref=f"/api/structures/{chemistry_record.sample_id}/depiction.svg",
+    )
+
+
+def render_2d_svg(smiles: str) -> str:
+    """Render a deterministic RDKit SVG depiction for a validated SMILES string."""
+
+    molecule = Chem.MolFromSmiles(smiles)  # type: ignore[attr-defined]
+    if molecule is None:
+        raise ValueError("RDKit could not parse the selected SMILES for 2D depiction.")
+
+    rdDepictor.Compute2DCoords(molecule)  # type: ignore[attr-defined]
+    drawer = rdMolDraw2D.MolDraw2DSVG(360, 260)  # type: ignore[attr-defined]
+    drawer.DrawMolecule(molecule)
+    drawer.FinishDrawing()
+    return str(drawer.GetDrawingText())
 
 
 def _geometry_payload(

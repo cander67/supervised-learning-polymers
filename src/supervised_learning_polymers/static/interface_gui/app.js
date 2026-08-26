@@ -32,6 +32,26 @@ function field(label, value) {
   return row;
 }
 
+function badge(value, className = "") {
+  const span = document.createElement("span");
+  span.className = className ? `badge ${className}` : "badge";
+  span.appendChild(text(value));
+  return span;
+}
+
+function smilesVariantField(variant) {
+  const row = document.createElement("div");
+  row.className = "field smiles-variant";
+  row.dataset.state = variant.state;
+  const key = document.createElement("span");
+  key.className = "field-label";
+  key.append(text(variant.label), badge(variant.state, `badge-${variant.state}`));
+  const val = document.createElement("code");
+  val.appendChild(text(variant.value || "n/a"));
+  row.append(key, val);
+  return row;
+}
+
 function renderList(id, rows) {
   const element = document.getElementById(id);
   clear(element);
@@ -345,20 +365,18 @@ function renderStructureDetail(detail) {
   selectedStatus.dataset.status = detail.geometry.status;
 
   renderList("structure-smiles-panel", [
-    field("Raw", detail.smiles.raw || "n/a"),
-    field("Canonical", detail.smiles.canonical || "n/a"),
-    field("Standardized", detail.smiles.standardized || "n/a"),
-    field("Capped", detail.smiles.capped || "n/a"),
-    field("Geometry input", detail.smiles.selected_geometry_input || "n/a"),
+    ...detail.smiles.variants.map((variant) => smilesVariantField(variant)),
     field(
       "Attachment points",
       detail.smiles.attachment_points.length ? detail.smiles.attachment_points.join(", ") : "none",
     ),
   ]);
+  renderDepictionPanel(detail);
 
   const statusRows = [
     field("Chemistry", detail.chemistry_status),
     field("Geometry", statusLabel(detail.geometry.status)),
+    field("2D", statusLabel(detail.depiction.status)),
   ];
   if (detail.geometry.failure) {
     statusRows.push(
@@ -385,7 +403,7 @@ function renderStructureDetail(detail) {
 
   renderList("structure-panel-states", [
     field("SMILES", detail.chemistry_status === "valid" ? "available" : "failed upstream"),
-    field("2D", detail.chemistry_status === "valid" ? "ready for Phase 3" : "failed upstream"),
+    field("2D", statusLabel(detail.depiction.status)),
     field(
       "3D",
       detail.geometry.status === "success" ? "SDF payload available" : statusLabel(detail.geometry.status),
@@ -396,12 +414,39 @@ function renderStructureDetail(detail) {
   renderStructureRows(state.structureRows);
 }
 
+function renderDepictionPanel(detail) {
+  const panel = document.getElementById("structure-2d-panel");
+  clear(panel);
+  if (detail.depiction.status !== "available") {
+    const rows = [
+      field("Status", statusLabel(detail.depiction.status)),
+      field("Action", detail.depiction.failure?.recommended_action || "Inspect upstream artifacts"),
+    ];
+    if (detail.depiction.failure) {
+      rows.splice(1, 0, field("Message", detail.depiction.failure.message));
+    }
+    rows.forEach((row) => panel.appendChild(row));
+    return;
+  }
+
+  const image = document.createElement("img");
+  image.alt = `2D structure for ${detail.sample_id}`;
+  image.src = detail.depiction.payload_ref;
+  image.addEventListener("error", () => {
+    clear(panel);
+    panel.appendChild(field("Status", "render failed"));
+    panel.appendChild(field("Action", "Inspect the selected SMILES representation for depiction"));
+  });
+  panel.appendChild(image);
+}
+
 function renderEmptyStructureDetail() {
   setText("structure-selected-title", "No sample selected");
   const selectedStatus = document.getElementById("structure-selected-status");
   selectedStatus.textContent = "Unavailable";
   selectedStatus.dataset.status = "unavailable";
   renderList("structure-smiles-panel", [field("Status", "No selected structure")]);
+  renderList("structure-2d-panel", [field("Status", "No selected structure")]);
   renderList("structure-status-panel", [field("Status", "No selected structure")]);
   renderList("structure-provenance-panel", [
     field("Chemistry records", state.artifact?.run_metadata.artifact_paths.chemistry_records || "n/a"),

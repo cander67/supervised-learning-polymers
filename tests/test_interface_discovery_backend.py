@@ -66,12 +66,15 @@ def test_backend_serves_static_gui_assets() -> None:
     assert 'id="structure-filter"' in index
     assert 'id="structure-rows"' in index
     assert 'id="structure-smiles-panel"' in index
+    assert 'id="structure-2d-panel"' in index
     assert 'id="structure-status-panel"' in index
     assert 'id="structure-provenance-panel"' in index
     assert 'id="structure-panel-states"' in index
     assert 'fetch("/api/artifact")' in app_js
     assert "loadStructures" in app_js
     assert "selectStructure" in app_js
+    assert "renderDepictionPanel" in app_js
+    assert "smilesVariantField" in app_js
     assert "state.structureFilter" in app_js
     assert "state.structureQuery" in app_js
     assert "No structures match the current search and status filter" in app_js
@@ -81,6 +84,8 @@ def test_backend_serves_static_gui_assets() -> None:
     assert ".summary-grid" in css
     assert ".structure-grid" in css
     assert ".selected-row" in css
+    assert ".depiction-panel" in css
+    assert ".badge-selected" in css
 
 
 def test_backend_serves_searchable_structure_summaries() -> None:
@@ -151,6 +156,12 @@ def test_backend_serves_successful_structure_detail() -> None:
     assert detail["geometry"]["sdf_text"].endswith("$$$$\n")
     assert detail["geometry"]["failure"] is None
     assert detail["geometry"]["payload_ref"] == ("/api/structures/poly-0001/geometry.sdf")
+    assert detail["depiction"] == {
+        "status": "available",
+        "source_smiles": "CCO",
+        "payload_ref": "/api/structures/poly-0001/depiction.svg",
+        "failure": None,
+    }
 
 
 def test_backend_serves_failed_structure_detail_with_failure_provenance() -> None:
@@ -179,6 +190,40 @@ def test_backend_serves_not_generated_and_chemistry_failed_structure_states() ->
     assert chemistry_failed["chemistry_status"] == "failed"
     assert chemistry_failed["geometry"]["status"] == "chemistry_failed"
     assert chemistry_failed["chemistry_failure"]["failure_type"] == "parse_error"
+    assert chemistry_failed["depiction"]["status"] == "upstream_failed"
+    assert chemistry_failed["depiction"]["failure"]["recommended_action"] == (
+        "Inspect the chemistry failure before reviewing 2D structure."
+    )
+
+
+def test_structure_detail_marks_smiles_variant_comparison_states() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0002"))
+        changed_detail = loads(fetch_text(f"{base_url}/api/structures/poly-0006"))
+        failed_detail = loads(fetch_text(f"{base_url}/api/structures/poly-0004"))
+
+    variant_states = {variant["name"]: variant["state"] for variant in detail["smiles"]["variants"]}
+    assert variant_states == {
+        "raw": "unchanged",
+        "canonical": "unchanged",
+        "standardized": "unchanged",
+        "capped": "changed",
+        "selected_geometry_input": "selected",
+    }
+    changed_variant_states = {
+        variant["name"]: variant["state"] for variant in changed_detail["smiles"]["variants"]
+    }
+    assert changed_variant_states["canonical"] == "changed"
+    assert changed_variant_states["standardized"] == "changed"
+    assert changed_variant_states["capped"] == "changed"
+    failed_variant_states = {
+        variant["name"]: variant["state"] for variant in failed_detail["smiles"]["variants"]
+    }
+    assert failed_variant_states["raw"] == "unchanged"
+    assert failed_variant_states["canonical"] == "missing"
+    assert failed_variant_states["standardized"] == "missing"
+    assert failed_variant_states["capped"] == "missing"
+    assert failed_variant_states["selected_geometry_input"] == "missing"
 
 
 def test_missing_geometry_artifact_is_distinct_from_not_generated(tmp_path: Path) -> None:
@@ -202,6 +247,45 @@ def test_backend_serves_structure_sdf_payload() -> None:
 
     assert "poly-0001" in sdf_text
     assert sdf_text.endswith("$$$$\n")
+
+
+def test_backend_serves_on_demand_structure_2d_svg_payload() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+        svg_text = fetch_text(f"{base_url}/api/structures/poly-0001/depiction.svg")
+
+    assert detail["depiction"]["payload_ref"] == "/api/structures/poly-0001/depiction.svg"
+    assert svg_text.lstrip().startswith("<?xml")
+    assert "<svg" in svg_text
+    assert "</svg>" in svg_text
+
+
+def test_structure_detail_reports_2d_render_failure_status(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    chemistry_records = loads(
+        (
+            Path(__file__).parent
+            / "fixtures"
+            / "structure_viewer_artifacts"
+            / "chemistry"
+            / "chemistry-audit-fixture-v1"
+            / "records.json"
+        ).read_text()
+    )
+    chemistry_records[0]["capped_smiles"] = "not-a-smiles"
+    chemistry_path = tmp_path / "records.json"
+    chemistry_path.write_text(dumps(chemistry_records) + "\n")
+    fixture["run_metadata"]["artifact_paths"]["chemistry_records"] = str(chemistry_path)
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["depiction"]["status"] == "render_failed"
+    assert detail["depiction"]["failure"]["message"] == (
+        "RDKit could not parse the selected SMILES for 2D depiction."
+    )
 
 
 def test_gui_metric_filter_changes_visible_metric_and_leaderboard_rows() -> None:
