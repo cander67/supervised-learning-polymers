@@ -24,6 +24,14 @@ Backend endpoints:
 
 - `GET /api/health`: server health check.
 - `GET /api/artifact`: validated `InterfaceDiscoveryArtifact` JSON.
+- `GET /api/structures`: searchable structure summaries, with optional `query` and `status`
+  parameters.
+- `GET /api/structures/<sample-id>`: selected structure detail payload with SMILES, 2D, 3D,
+  chemistry, geometry, and provenance states.
+- `GET /api/structures/<sample-id>/depiction.svg`: on-demand RDKit 2D SVG depiction for valid
+  chemistry records.
+- `GET /api/structures/<sample-id>/geometry.sdf`: persisted SDF conformer payload for successful
+  geometry records.
 - `GET /`, `/app.js`, `/styles.css`: static GUI assets.
 
 ## Chemistry Artifacts
@@ -49,6 +57,37 @@ bundle under `artifacts/geometry/<geometry-config-id>/`, including `records.json
 `summary.json`, and `metadata.json`. The current GUI displays only aggregate feasibility and failure
 summary fields; PRD 13 should consume the same artifact identities when it adds molecule-level
 SMILES, 2D, and 3D structure review panels.
+
+## Structure Viewer
+
+PRD 13 adds a structure browser inside the same local GUI shell. It consumes chemistry
+`records.json` and geometry `records.json` through `run_metadata.artifact_paths`, joins records by
+`sample_id`, and keeps each panel artifact-driven:
+
+- SMILES: raw, canonical, standardized, capped, selected geometry input, and attachment points.
+- 2D: on-demand RDKit SVG from the selected validated SMILES representation.
+- 3D: persisted SDF text from PRD 4 geometry artifacts.
+- Graph: explicit not-yet-generated state until graph artifacts arrive.
+
+Geometry status semantics are visible per selected sample:
+
+- `success`: a conformer attempt succeeded and SDF text is available.
+- `failed`: a conformer attempt ran and produced structured failure provenance.
+- `not_generated`: chemistry is valid, but no geometry record exists for the sample.
+- `artifact_missing`: the referenced geometry records artifact cannot be resolved.
+- `chemistry_failed`: upstream chemistry failed before geometry review was possible.
+
+The 3D panel uses a vendored 3Dmol.js browser build:
+
+- Package: `3dmol`
+- Version: `2.5.5`
+- Source: `https://unpkg.com/3dmol@2.5.5/build/3Dmol-min.js`
+- Vendored path: `src/supervised_learning_polymers/static/interface_gui/vendor/3dmol/3Dmol-min.js`
+- SHA-256: `f7cc78921ae72e7623e89cdd111434f58c2efddd2ffda1cd212644b406fb8016`
+- License files: `vendor/3dmol/LICENSE` and `vendor/3dmol/3Dmol-min.js.LICENSE.txt`
+
+The checksum is pinned in the backend/static tests so accidental vendored-file changes are visible
+during the default test suite.
 
 ## Tradeoffs
 

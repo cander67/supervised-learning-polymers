@@ -335,7 +335,8 @@ h3 {
   overflow-wrap: anywhere;
 }
 
-.depiction-panel {
+.depiction-panel,
+.conformer-panel {
   min-height: 160px;
 }
 
@@ -345,6 +346,14 @@ h3 {
   max-width: 360px;
   height: auto;
   margin: 0 auto;
+}
+
+.molecule-viewer {
+  width: 100%;
+  min-height: 260px;
+  border: 1px solid #d4ddd7;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .table-wrap {

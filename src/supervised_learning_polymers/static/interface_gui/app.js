@@ -8,6 +8,8 @@ const state = {
   selectedStructureId: null,
 };
 
+const nativeFetch = window.fetch.bind(window);
+
 const text = (value) => document.createTextNode(value);
 
 function setText(id, value) {
@@ -302,7 +304,7 @@ function setStructureState(message, mode = "info") {
 
 function loadStructures() {
   setStructureState("Loading structures");
-  fetch(`/api/structures${structureQueryString()}`)
+  nativeFetch(`/api/structures${structureQueryString()}`)
     .then((response) => {
       if (!response.ok) throw new Error(`Structure request failed: ${response.status}`);
       return response.json();
@@ -346,7 +348,7 @@ function renderStructureRows(records) {
 
 function selectStructure(sampleId) {
   state.selectedStructureId = sampleId;
-  fetch(`/api/structures/${encodeURIComponent(sampleId)}`)
+  nativeFetch(`/api/structures/${encodeURIComponent(sampleId)}`)
     .then((response) => {
       if (!response.ok) throw new Error(`Structure detail failed: ${response.status}`);
       return response.json();
@@ -372,12 +374,23 @@ function renderStructureDetail(detail) {
     ),
   ]);
   renderDepictionPanel(detail);
+  renderConformerPanel(detail);
 
   const statusRows = [
     field("Chemistry", detail.chemistry_status),
     field("Geometry", statusLabel(detail.geometry.status)),
     field("2D", statusLabel(detail.depiction.status)),
   ];
+  if (detail.geometry.method) {
+    statusRows.push(
+      field("Method", detail.geometry.method.method_name || "n/a"),
+      field("Embedding", detail.geometry.method.embedding_status || "n/a"),
+      field("Optimization", detail.geometry.method.optimization_status || "n/a"),
+    );
+  }
+  if (detail.geometry.timing) {
+    statusRows.push(field("Runtime", `${detail.geometry.timing.runtime_seconds}s`));
+  }
   if (detail.geometry.failure) {
     statusRows.push(
       field("Failure", detail.geometry.failure.failure_type),
@@ -392,6 +405,14 @@ function renderStructureDetail(detail) {
       field("Message", detail.chemistry_failure.message),
     );
   }
+  detail.geometry.fallback_provenance.forEach((fallback) => {
+    statusRows.push(
+      field(
+        `Fallback ${fallback.method_name}`,
+        `${fallback.status}: ${fallback.reason}`,
+      ),
+    );
+  });
   renderList("structure-status-panel", statusRows);
 
   renderList("structure-provenance-panel", [
@@ -412,6 +433,49 @@ function renderStructureDetail(detail) {
   ]);
 
   renderStructureRows(state.structureRows);
+}
+
+function renderConformerPanel(detail) {
+  const panel = document.getElementById("structure-3d-panel");
+  clear(panel);
+  if (detail.geometry.status !== "success" || !detail.geometry.sdf_text) {
+    const rows = [
+      field("Status", statusLabel(detail.geometry.status)),
+    ];
+    if (detail.geometry.failure) {
+      rows.push(
+        field("Failure", detail.geometry.failure.failure_type),
+        field("Stage", detail.geometry.failure.stage),
+        field("Method", detail.geometry.failure.method),
+        field("Message", detail.geometry.failure.message),
+        field("Action", detail.geometry.failure.recommended_action),
+      );
+    }
+    if (detail.geometry.timing) {
+      rows.push(field("Runtime", `${detail.geometry.timing.runtime_seconds}s`));
+    }
+    rows.forEach((row) => panel.appendChild(row));
+    return;
+  }
+
+  const threeDmol = window.$3Dmol || window["3Dmol"];
+  if (!threeDmol) {
+    panel.appendChild(field("Status", "3Dmol asset unavailable"));
+    return;
+  }
+
+  const viewerElement = document.createElement("div");
+  viewerElement.className = "molecule-viewer";
+  viewerElement.setAttribute("aria-label", `3D conformer for ${detail.sample_id}`);
+  panel.appendChild(viewerElement);
+
+  const viewer = threeDmol.createViewer(viewerElement, {
+    backgroundColor: "white",
+  });
+  viewer.addModel(detail.geometry.sdf_text, "sdf");
+  viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.22 } });
+  viewer.zoomTo();
+  viewer.render();
 }
 
 function renderDepictionPanel(detail) {
@@ -447,6 +511,7 @@ function renderEmptyStructureDetail() {
   selectedStatus.dataset.status = "unavailable";
   renderList("structure-smiles-panel", [field("Status", "No selected structure")]);
   renderList("structure-2d-panel", [field("Status", "No selected structure")]);
+  renderList("structure-3d-panel", [field("Status", "No selected structure")]);
   renderList("structure-status-panel", [field("Status", "No selected structure")]);
   renderList("structure-provenance-panel", [
     field("Chemistry records", state.artifact?.run_metadata.artifact_paths.chemistry_records || "n/a"),
@@ -482,7 +547,7 @@ document.getElementById("structure-filter").addEventListener("change", (event) =
   loadStructures();
 });
 
-fetch("/api/artifact")
+nativeFetch("/api/artifact")
   .then((response) => {
     if (!response.ok) throw new Error(`Artifact request failed: ${response.status}`);
     return response.json();

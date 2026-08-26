@@ -92,6 +92,8 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
             self._send_static_file("index.html")
         elif route in {"/app.js", "/styles.css"}:
             self._send_static_file(route.removeprefix("/"))
+        elif route.startswith("/vendor/"):
+            self._send_static_file(route.removeprefix("/"))
         else:
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
@@ -111,7 +113,7 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
 
     def _send_static_file(self, filename: str) -> None:
         path = STATIC_DIR / filename
-        if not path.exists():
+        if not _is_static_child(path) or not path.exists():
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
             return
 
@@ -119,6 +121,7 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
             ".css": "text/css",
             ".html": "text/html",
             ".js": "text/javascript",
+            ".txt": "text/plain",
         }.get(path.suffix, "application/octet-stream")
         self._send_text(path.read_text(), content_type)
 
@@ -158,6 +161,10 @@ def _structure_status_filter(value: str | None) -> StructureStatusFilter:
     if value == "chemistry_failed":
         return "chemistry_failed"
     return "all"
+
+
+def _is_static_child(path: Path) -> bool:
+    return path.resolve().is_relative_to(STATIC_DIR.resolve())
 
 
 if __name__ == "__main__":

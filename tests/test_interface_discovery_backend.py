@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
+from hashlib import sha256
 from json import dumps, loads
 from pathlib import Path
 from threading import Thread
@@ -9,6 +10,17 @@ from urllib.request import urlopen
 from supervised_learning_polymers.interface_backend import create_interface_discovery_server
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "interface_discovery_run.json"
+THREEDMOL_PATH = (
+    Path(__file__).parents[1]
+    / "src"
+    / "supervised_learning_polymers"
+    / "static"
+    / "interface_gui"
+    / "vendor"
+    / "3dmol"
+    / "3Dmol-min.js"
+)
+THREEDMOL_SHA256 = "f7cc78921ae72e7623e89cdd111434f58c2efddd2ffda1cd212644b406fb8016"
 
 
 def test_backend_serves_health_check() -> None:
@@ -67,14 +79,20 @@ def test_backend_serves_static_gui_assets() -> None:
     assert 'id="structure-rows"' in index
     assert 'id="structure-smiles-panel"' in index
     assert 'id="structure-2d-panel"' in index
+    assert 'id="structure-3d-panel"' in index
     assert 'id="structure-status-panel"' in index
     assert 'id="structure-provenance-panel"' in index
     assert 'id="structure-panel-states"' in index
-    assert 'fetch("/api/artifact")' in app_js
+    assert "const nativeFetch = window.fetch.bind(window);" in app_js
+    assert 'nativeFetch("/api/artifact")' in app_js
+    assert 'src="/vendor/3dmol/3Dmol-min.js"' in index
     assert "loadStructures" in app_js
     assert "selectStructure" in app_js
     assert "renderDepictionPanel" in app_js
+    assert "renderConformerPanel" in app_js
+    assert 'window["3Dmol"]' in app_js
     assert "smilesVariantField" in app_js
+    assert "fallback_provenance" in app_js
     assert "state.structureFilter" in app_js
     assert "state.structureQuery" in app_js
     assert "No structures match the current search and status filter" in app_js
@@ -85,7 +103,19 @@ def test_backend_serves_static_gui_assets() -> None:
     assert ".structure-grid" in css
     assert ".selected-row" in css
     assert ".depiction-panel" in css
+    assert ".conformer-panel" in css
+    assert ".molecule-viewer" in css
     assert ".badge-selected" in css
+
+
+def test_backend_serves_vendored_3dmol_asset_and_checksum_is_pinned() -> None:
+    assert sha256(THREEDMOL_PATH.read_bytes()).hexdigest() == THREEDMOL_SHA256
+    with running_server() as base_url:
+        asset = fetch_text(f"{base_url}/vendor/3dmol/3Dmol-min.js")
+        license_notice = fetch_text(f"{base_url}/vendor/3dmol/3Dmol-min.js.LICENSE.txt")
+
+    assert "3dmol v2.5.5" in license_notice
+    assert "$3Dmol" in asset
 
 
 def test_backend_serves_searchable_structure_summaries() -> None:
@@ -154,6 +184,8 @@ def test_backend_serves_successful_structure_detail() -> None:
     assert detail["provenance"]["geometry_config_id"] == "geometry-rdkit-fixture-v1"
     assert detail["geometry"]["status"] == "success"
     assert detail["geometry"]["sdf_text"].endswith("$$$$\n")
+    assert detail["geometry"]["method"]["method_name"] == "rdkit_etkdg_mmff"
+    assert detail["geometry"]["timing"]["runtime_seconds"] == 0.021
     assert detail["geometry"]["failure"] is None
     assert detail["geometry"]["payload_ref"] == ("/api/structures/poly-0001/geometry.sdf")
     assert detail["depiction"] == {
@@ -170,6 +202,8 @@ def test_backend_serves_failed_structure_detail_with_failure_provenance() -> Non
 
     assert detail["geometry"]["status"] == "failed"
     assert detail["geometry"]["sdf_text"] is None
+    assert detail["geometry"]["method"]["embedding_status"] == "failed"
+    assert detail["geometry"]["timing"]["runtime_seconds"] == 0.112
     assert detail["geometry"]["failure"] == {
         "failure_type": "embedding_failed",
         "stage": "embedding",
@@ -177,6 +211,53 @@ def test_backend_serves_failed_structure_detail_with_failure_provenance() -> Non
         "method": "rdkit_etkdg_mmff",
         "recommended_action": "Try a capped input representation or inspect the molecule.",
     }
+
+
+def test_structure_detail_preserves_fallback_provenance_for_display(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    geometry_records = loads(
+        (
+            Path(__file__).parent
+            / "fixtures"
+            / "structure_viewer_artifacts"
+            / "geometry"
+            / "geometry-rdkit-fixture-v1"
+            / "records.json"
+        ).read_text()
+    )
+    fallback_statuses = [
+        "disabled",
+        "skipped_not_needed",
+        "skipped_dependency_unavailable",
+        "attempted",
+        "success",
+        "failed",
+        "unavailable",
+    ]
+    geometry_records[0]["fallback_provenance"] = [
+        {
+            "method_name": "xtb" if index % 2 else "mlip",
+            "priority": index,
+            "status": status,
+            "reason": f"{status} fixture reason.",
+            "runtime_seconds": None,
+            "dependency_available": status
+            not in {"disabled", "skipped_dependency_unavailable", "unavailable"},
+        }
+        for index, status in enumerate(fallback_statuses, start=1)
+    ]
+    geometry_path = tmp_path / "records.json"
+    geometry_path.write_text(dumps(geometry_records) + "\n")
+    fixture["run_metadata"]["artifact_paths"]["geometry_records"] = str(geometry_path)
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert [
+        fallback["status"] for fallback in detail["geometry"]["fallback_provenance"]
+    ] == fallback_statuses
 
 
 def test_backend_serves_not_generated_and_chemistry_failed_structure_states() -> None:
