@@ -6,6 +6,10 @@ const state = {
   structureQuery: "",
   structureRows: [],
   selectedStructureId: null,
+  failureTriage: null,
+  selectedFailureDomain: null,
+  selectedFailureType: null,
+  selectedFailureSampleId: null,
 };
 
 const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);
@@ -75,13 +79,17 @@ function cell(value, className = "") {
 
 function buttonCell(label, onClick) {
   const td = document.createElement("td");
+  td.appendChild(actionButton(label, onClick));
+  return td;
+}
+
+function actionButton(label, onClick, className = "link-button") {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "link-button";
+  button.className = className;
   button.appendChild(text(label));
   button.addEventListener("click", onClick);
-  td.appendChild(button);
-  return td;
+  return button;
 }
 
 function statusChip(value) {
@@ -152,6 +160,7 @@ function renderArtifact(artifact) {
   renderMetricRows();
   renderMetricSummary();
   renderLeaderboardRows();
+  loadFailureTriage();
   loadStructures();
 }
 
@@ -172,9 +181,9 @@ function renderGeometrySummary(geometry) {
   renderTable("geometry-failure-rows", geometry.failure_groups, (group) => {
     const tr = document.createElement("tr");
     tr.append(
-      cell(group.failure_type),
+      buttonCell(group.failure_type, () => openFailureGroup("geometry", group.failure_type)),
       cell(group.count, "num"),
-      cell(group.example_sample_ids.join(", ") || "n/a"),
+      failureExamplesCell(group.example_sample_ids, "geometry", group.failure_type),
       cell(group.recommended_action),
     );
     return tr;
@@ -279,13 +288,180 @@ function renderFailureRows() {
   renderTable("failure-rows", groups, (group) => {
     const tr = document.createElement("tr");
     tr.append(
-      cell(group.failure_type),
+      buttonCell(group.failure_type, () => openFailureGroup("chemistry", group.failure_type)),
       cell(group.count, "num"),
-      cell(group.example_sample_ids.join(", ") || "n/a"),
+      failureExamplesCell(group.example_sample_ids, "chemistry", group.failure_type),
       cell(group.recommended_action),
     );
     return tr;
   });
+}
+
+function loadFailureTriage() {
+  nativeFetch("/api/structure-failures")
+    .then((response) => {
+      if (!response.ok) throw new Error(`Failure triage request failed: ${response.status}`);
+      return response.json();
+    })
+    .then((payload) => {
+      state.failureTriage = payload;
+      const firstGroup = payload.groups[0];
+      if (firstGroup && !state.selectedFailureType) {
+        state.selectedFailureDomain = firstGroup.domain;
+        state.selectedFailureType = firstGroup.failure_type;
+      }
+      renderFailureTriage();
+    })
+    .catch((error) => {
+      renderList("triage-detail-panel", [field("Status", error.message)]);
+      renderTable("triage-group-rows", [], (group) => group);
+      renderTable("triage-example-rows", [], (example) => example);
+    });
+}
+
+function openFailureGroup(domain, failureType, sampleId = null) {
+  state.selectedFailureDomain = domain;
+  state.selectedFailureType = failureType;
+  state.selectedFailureSampleId = sampleId;
+  renderFailureTriage();
+
+  const group = selectedFailureGroup();
+  if (group) {
+    state.structureFilter = group.structure_filter;
+    document.getElementById("structure-filter").value = group.structure_filter;
+  }
+  state.structureQuery = sampleId || "";
+  document.getElementById("structure-search").value = state.structureQuery;
+  loadStructures();
+  document.getElementById("structure-browser").scrollIntoView({ block: "start" });
+}
+
+function selectedFailureGroup() {
+  if (!state.failureTriage || !state.selectedFailureType) return null;
+  return state.failureTriage.groups.find(
+    (group) =>
+      group.domain === state.selectedFailureDomain
+      && group.failure_type === state.selectedFailureType,
+  );
+}
+
+function selectedFailureExamples() {
+  if (!state.failureTriage || !state.selectedFailureType) return [];
+  return state.failureTriage.examples.filter(
+    (example) =>
+      example.domain === state.selectedFailureDomain
+      && example.failure_type === state.selectedFailureType,
+  );
+}
+
+function selectedFailureExample() {
+  const examples = selectedFailureExamples();
+  if (state.selectedFailureSampleId) {
+    return examples.find((example) => example.sample_id === state.selectedFailureSampleId) || examples[0];
+  }
+  return examples[0] || null;
+}
+
+function renderFailureTriage() {
+  if (!state.failureTriage) {
+    renderList("triage-detail-panel", [field("Status", "Loading failure triage")]);
+    return;
+  }
+
+  renderTriagePatternGuide();
+  renderTable("triage-group-rows", state.failureTriage.groups, (group) => {
+    const tr = document.createElement("tr");
+    if (
+      group.domain === state.selectedFailureDomain
+      && group.failure_type === state.selectedFailureType
+    ) {
+      tr.className = "selected-row";
+    }
+    tr.append(
+      buttonCell(
+        `${group.domain}: ${group.failure_type}`,
+        () => openFailureGroup(group.domain, group.failure_type),
+      ),
+      cell(group.count, "num"),
+      failureExamplesCell(group.example_sample_ids, group.domain, group.failure_type),
+      cell(group.recommended_action),
+    );
+    return tr;
+  });
+
+  const examples = selectedFailureExamples();
+  renderTable("triage-example-rows", examples, (example) => {
+    const tr = document.createElement("tr");
+    if (example.sample_id === state.selectedFailureSampleId) tr.className = "selected-row";
+    tr.append(
+      buttonCell(
+        example.sample_id,
+        () => openFailureGroup(example.domain, example.failure_type, example.sample_id),
+      ),
+      cell(example.stage),
+      cell(example.method || "n/a"),
+      cell(example.structure_detail_available ? "structure record" : "failure file only"),
+    );
+    return tr;
+  });
+
+  const example = selectedFailureExample();
+  if (!example) {
+    renderList("triage-detail-panel", [field("Status", "Select a failure group")]);
+    return;
+  }
+
+  const detailRows = [
+    field("Sample", example.sample_id),
+    field("Domain", example.domain),
+    field("Failure", example.failure_type),
+    field("Stage", example.stage),
+    field("Method", example.method || "n/a"),
+    field("Message", example.message),
+    field("Action", example.recommended_action),
+    field("Raw", example.raw_smiles || "n/a"),
+    field("Canonical", example.canonical_smiles || "n/a"),
+    field("Standardized", example.standardized_smiles || "n/a"),
+    field("Capped", example.capped_smiles || "n/a"),
+    field("Selected input", example.selected_input_smiles || "n/a"),
+    field("Input representation", example.selected_input_representation || "n/a"),
+    field("Attachment points", example.attachment_points.length ? example.attachment_points.join(", ") : "none"),
+    field("Runtime", example.runtime_seconds === null ? "n/a" : `${example.runtime_seconds}s`),
+    field("Source", example.structure_detail_available ? "failure file + structure record" : "failure file"),
+  ];
+  example.fallback_provenance.forEach((fallback) => {
+    detailRows.push(
+      field(
+        `Fallback ${fallback.method_name}`,
+        `${fallback.status}: ${fallback.reason}`,
+      ),
+    );
+  });
+  renderList("triage-detail-panel", detailRows);
+}
+
+function renderTriagePatternGuide() {
+  const guide = document.getElementById("triage-pattern-guide");
+  clear(guide);
+  const observedTypes = new Set(state.failureTriage.groups.map((group) => group.failure_type));
+  state.failureTriage.pattern_reference.forEach((failureType) => {
+    guide.appendChild(badge(failureType, observedTypes.has(failureType) ? "badge-selected" : "badge-missing"));
+  });
+}
+
+function failureExamplesCell(sampleIds, domain, failureType) {
+  const td = document.createElement("td");
+  if (!sampleIds.length) {
+    td.appendChild(text("n/a"));
+    return td;
+  }
+  const list = document.createElement("div");
+  list.className = "example-links";
+  sampleIds.forEach((sampleId) => {
+    list.appendChild(actionButton(sampleId, () => openFailureGroup(domain, failureType, sampleId)));
+  });
+  td.appendChild(list);
+  return td;
 }
 
 function structureQueryString() {

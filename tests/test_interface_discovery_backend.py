@@ -83,9 +83,14 @@ def test_backend_serves_static_gui_assets() -> None:
     assert 'id="structure-status-panel"' in index
     assert 'id="structure-provenance-panel"' in index
     assert 'id="structure-panel-states"' in index
+    assert 'id="triage-group-rows"' in index
+    assert 'id="triage-example-rows"' in index
+    assert 'id="triage-detail-panel"' in index
+    assert 'id="triage-pattern-guide"' in index
     assert "window.__nativeFetch = window.fetch;" in index
     assert "const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);" in app_js
     assert 'nativeFetch("/api/artifact")' in app_js
+    assert 'nativeFetch("/api/structure-failures")' in app_js
     assert 'src="/vendor/3dmol/3Dmol-min.js"' in index
     assert index.index("window.__nativeFetch = window.fetch;") < index.index(
         'src="/vendor/3dmol/3Dmol-min.js"',
@@ -95,6 +100,8 @@ def test_backend_serves_static_gui_assets() -> None:
     assert "selectStructure" in app_js
     assert "renderDepictionPanel" in app_js
     assert "renderConformerPanel" in app_js
+    assert "renderFailureTriage" in app_js
+    assert "openFailureGroup" in app_js
     assert "geometryUnavailableAction" in app_js
     assert 'window["3Dmol"]' in app_js
     assert "smilesVariantField" in app_js
@@ -107,6 +114,9 @@ def test_backend_serves_static_gui_assets() -> None:
     assert "run-interface-discovery-fixture-001" not in app_js
     assert ".summary-grid" in css
     assert ".structure-grid" in css
+    assert ".triage-workbench" in css
+    assert ".triage-grid" in css
+    assert ".pattern-guide" in css
     assert ".selected-row" in css
     assert ".depiction-panel" in css
     assert ".conformer-panel" in css
@@ -124,6 +134,44 @@ def test_backend_serves_vendored_3dmol_asset_and_checksum_is_pinned() -> None:
 
     assert "3dmol v2.5.5" in license_notice
     assert "$3Dmol" in asset
+
+
+def test_backend_serves_failure_triage_from_failure_artifact_files() -> None:
+    with running_server() as base_url:
+        triage = loads(fetch_text(f"{base_url}/api/structure-failures"))
+
+    assert triage["total_groups"] == 4
+    assert triage["total_examples"] == 5
+    assert triage["pattern_reference"] == [
+        "embedding_failed",
+        "parse_error",
+        "optimization_failed",
+        "unsupported_wildcard_atoms",
+        "method_unavailable",
+    ]
+    assert {
+        (group["domain"], group["failure_type"]): group["structure_filter"]
+        for group in triage["groups"]
+    } == {
+        ("chemistry", "capping_error"): "chemistry_failed",
+        ("chemistry", "parse_error"): "chemistry_failed",
+        ("chemistry", "standardization_error"): "chemistry_failed",
+        ("geometry", "embedding_failed"): "geometry_failure",
+    }
+
+    geometry_examples = {
+        example["sample_id"]: example
+        for example in triage["examples"]
+        if example["domain"] == "geometry"
+    }
+    assert geometry_examples["poly-0006"]["selected_input_representation"] == "capped_smiles"
+    assert geometry_examples["poly-0006"]["selected_input_smiles"] == "[H]C([H])C(C)C"
+    assert geometry_examples["poly-0006"]["runtime_seconds"] == 0.112
+    assert geometry_examples["poly-0006"]["structure_detail_available"] is True
+    assert geometry_examples["poly-0009"]["structure_detail_available"] is False
+    assert (
+        geometry_examples["poly-0009"]["message"] == "RDKit ETKDG embedding failed with status -1."
+    )
 
 
 def test_backend_serves_searchable_structure_summaries() -> None:

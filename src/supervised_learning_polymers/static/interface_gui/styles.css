@@ -245,6 +245,34 @@ code {
   min-width: 560px;
 }
 
+.triage-workbench {
+  margin: 0 0 18px;
+  background: #fbfcfb;
+}
+
+.triage-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(250px, 0.75fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.triage-grid table {
+  min-width: 520px;
+}
+
+.triage-detail {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.pattern-guide,
+.example-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
 .structure-detail {
   min-width: 0;
 }
@@ -402,6 +430,7 @@ th {
   .summary-grid,
   .counts,
   .structure-grid,
+  .triage-grid,
   .panel-grid {
     grid-template-columns: 1fr;
   }

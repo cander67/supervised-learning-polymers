@@ -7,8 +7,16 @@ from typing import Literal
 
 from pydantic import Field
 
-from supervised_learning_polymers.chemistry import ChemistryAuditRecord, ChemistryFailureRecord
-from supervised_learning_polymers.geometry import GeometryAttemptRecord
+from supervised_learning_polymers.chemistry import (
+    ChemistryAuditFailureGroup,
+    ChemistryAuditRecord,
+    ChemistryFailureRecord,
+)
+from supervised_learning_polymers.geometry import (
+    GeometryAttemptRecord,
+    GeometryFailureGroup,
+    GeometryFailureRecord,
+)
 from supervised_learning_polymers.interface_discovery import InterfaceDiscoveryArtifact
 from supervised_learning_polymers.targets import ContractModel
 
@@ -27,6 +35,7 @@ StructureStatusFilter = Literal[
     "not_generated",
     "chemistry_failed",
 ]
+FailureTriageDomain = Literal["chemistry", "geometry"]
 DepictionViewerStatus = Literal["available", "upstream_failed", "missing_smiles", "render_failed"]
 SmilesVariantKind = Literal[
     "raw",
@@ -141,6 +150,49 @@ class StructureListResponse(ContractModel):
     records: tuple[StructureRecordSummary, ...] = Field(default_factory=tuple)
 
 
+class StructureFailureTriageGroup(ContractModel):
+    """Aggregate failure group that can open representative triage examples."""
+
+    domain: FailureTriageDomain
+    failure_type: str = Field(min_length=1)
+    count: int = Field(ge=1)
+    example_sample_ids: tuple[str, ...] = Field(default_factory=tuple)
+    recommended_action: str = Field(min_length=1)
+    structure_filter: StructureStatusFilter
+
+
+class StructureFailureTriageExample(ContractModel):
+    """One failure-file example normalized for reviewer triage."""
+
+    domain: FailureTriageDomain
+    sample_id: str = Field(min_length=1)
+    failure_type: str = Field(min_length=1)
+    stage: str = Field(min_length=1)
+    message: str = Field(min_length=1)
+    method: str | None = None
+    recommended_action: str = Field(min_length=1)
+    raw_smiles: str | None = None
+    canonical_smiles: str | None = None
+    standardized_smiles: str | None = None
+    capped_smiles: str | None = None
+    selected_input_representation: str | None = None
+    selected_input_smiles: str | None = None
+    attachment_points: tuple[str, ...] = Field(default_factory=tuple)
+    runtime_seconds: float | None = None
+    fallback_provenance: tuple[dict[str, object], ...] = Field(default_factory=tuple)
+    structure_detail_available: bool = False
+
+
+class StructureFailureTriageResponse(ContractModel):
+    """Failure triage payload built from failures.json with record fallbacks."""
+
+    total_groups: int = Field(ge=0)
+    total_examples: int = Field(ge=0)
+    groups: tuple[StructureFailureTriageGroup, ...] = Field(default_factory=tuple)
+    examples: tuple[StructureFailureTriageExample, ...] = Field(default_factory=tuple)
+    pattern_reference: tuple[str, ...] = Field(default_factory=tuple)
+
+
 class StructureArtifactBundle:
     """Lazy structure-viewer bundle resolved from interface artifact paths."""
 
@@ -149,6 +201,16 @@ class StructureArtifactBundle:
         self.artifact_path = Path(artifact_path)
         self._chemistry_records = _load_chemistry_records(artifact, self.artifact_path)
         self._geometry_records = _load_geometry_records(artifact, self.artifact_path)
+        self._chemistry_failures = _load_chemistry_failures(
+            artifact,
+            self.artifact_path,
+            self._chemistry_records,
+        )
+        self._geometry_failures = _load_geometry_failures(
+            artifact,
+            self.artifact_path,
+            self._geometry_records,
+        )
 
     def list_structures(
         self,
@@ -173,6 +235,44 @@ class StructureArtifactBundle:
         if chemistry_record is None:
             return None
         return self._detail_for_record(chemistry_record)
+
+    def failure_triage(self) -> StructureFailureTriageResponse:
+        groups = _triage_groups(self.artifact)
+        examples = tuple(
+            [
+                *(
+                    _chemistry_triage_example(
+                        failure,
+                        _chemistry_group_action(self.artifact, failure.failure_type),
+                        self._chemistry_records,
+                    )
+                    for failure in self._chemistry_failures
+                ),
+                *(
+                    _geometry_triage_example(
+                        failure,
+                        self._geometry_records.get(failure.sample_id)
+                        if self._geometry_records is not None
+                        else None,
+                        self._chemistry_records,
+                    )
+                    for failure in self._geometry_failures
+                ),
+            ]
+        )
+        return StructureFailureTriageResponse(
+            total_groups=len(groups),
+            total_examples=len(examples),
+            groups=groups,
+            examples=examples,
+            pattern_reference=(
+                "embedding_failed",
+                "parse_error",
+                "optimization_failed",
+                "unsupported_wildcard_atoms",
+                "method_unavailable",
+            ),
+        )
 
     def sdf_text(self, sample_id: str) -> str | None:
         detail = self.structure_detail(sample_id)
@@ -242,6 +342,46 @@ def _load_geometry_records(
         record.sample_id: record
         for record in (GeometryAttemptRecord.model_validate(record) for record in payload)
     }
+
+
+def _load_chemistry_failures(
+    artifact: InterfaceDiscoveryArtifact,
+    artifact_path: Path,
+    records: tuple[ChemistryAuditRecord, ...],
+) -> tuple[ChemistryFailureRecord, ...]:
+    path = _resolve_artifact_path(
+        artifact.run_metadata.artifact_paths.get("chemistry_failures"),
+        artifact_path,
+    )
+    if path is not None:
+        payload = loads(path.read_text())
+        return tuple(ChemistryFailureRecord.model_validate(record) for record in payload)
+    failures: list[ChemistryFailureRecord] = []
+    for record in records:
+        if record.failure is not None:
+            failures.append(record.failure)
+    return tuple(failures)
+
+
+def _load_geometry_failures(
+    artifact: InterfaceDiscoveryArtifact,
+    artifact_path: Path,
+    records: dict[str, GeometryAttemptRecord] | None,
+) -> tuple[GeometryFailureRecord, ...]:
+    path = _resolve_artifact_path(
+        artifact.run_metadata.artifact_paths.get("geometry_failures"),
+        artifact_path,
+    )
+    if path is not None:
+        payload = loads(path.read_text())
+        return tuple(GeometryFailureRecord.model_validate(record) for record in payload)
+    if records is None:
+        return ()
+    failures: list[GeometryFailureRecord] = []
+    for record in records.values():
+        if record.failure is not None:
+            failures.append(record.failure)
+    return tuple(failures)
 
 
 def _resolve_artifact_path(value: str | None, artifact_path: Path) -> Path | None:
@@ -450,6 +590,157 @@ def _filter_summaries(
         detail.sample_id for detail in details if needle in _search_text(detail).casefold()
     }
     return tuple(summary for summary in matching_status if summary.sample_id in matched_ids)
+
+
+def _triage_groups(
+    artifact: InterfaceDiscoveryArtifact,
+) -> tuple[StructureFailureTriageGroup, ...]:
+    chemistry_groups = tuple(
+        _chemistry_triage_group(group)
+        for group in artifact.chemistry_failure_summary.failure_groups
+    )
+    geometry_groups: tuple[StructureFailureTriageGroup, ...] = ()
+    if artifact.geometry_summary is not None:
+        geometry_groups = tuple(
+            _geometry_triage_group(group) for group in artifact.geometry_summary.failure_groups
+        )
+    return (*chemistry_groups, *geometry_groups)
+
+
+def _chemistry_triage_group(
+    group: ChemistryAuditFailureGroup,
+) -> StructureFailureTriageGroup:
+    return StructureFailureTriageGroup(
+        domain="chemistry",
+        failure_type=group.failure_type,
+        count=group.count,
+        example_sample_ids=group.example_sample_ids,
+        recommended_action=group.recommended_action,
+        structure_filter="chemistry_failed",
+    )
+
+
+def _geometry_triage_group(group: GeometryFailureGroup) -> StructureFailureTriageGroup:
+    return StructureFailureTriageGroup(
+        domain="geometry",
+        failure_type=group.failure_type,
+        count=group.count,
+        example_sample_ids=group.example_sample_ids,
+        recommended_action=group.recommended_action,
+        structure_filter="geometry_failure",
+    )
+
+
+def _chemistry_group_action(
+    artifact: InterfaceDiscoveryArtifact,
+    failure_type: str,
+) -> str:
+    return next(
+        (
+            group.recommended_action
+            for group in artifact.chemistry_failure_summary.failure_groups
+            if group.failure_type == failure_type
+        ),
+        "Inspect the chemistry failure record.",
+    )
+
+
+def _chemistry_triage_example(
+    failure: ChemistryFailureRecord,
+    recommended_action: str,
+    records: tuple[ChemistryAuditRecord, ...],
+) -> StructureFailureTriageExample:
+    chemistry_record = _chemistry_record_for_sample(records, failure.sample_id)
+    return StructureFailureTriageExample(
+        domain="chemistry",
+        sample_id=failure.sample_id,
+        failure_type=failure.failure_type,
+        stage=failure.stage,
+        message=failure.message,
+        recommended_action=recommended_action,
+        raw_smiles=failure.raw_smiles,
+        canonical_smiles=chemistry_record.canonical_smiles if chemistry_record else None,
+        standardized_smiles=chemistry_record.standardized_smiles if chemistry_record else None,
+        capped_smiles=chemistry_record.capped_smiles if chemistry_record else None,
+        attachment_points=chemistry_record.attachment_points if chemistry_record else (),
+        structure_detail_available=chemistry_record is not None,
+    )
+
+
+def _geometry_triage_example(
+    failure: GeometryFailureRecord,
+    geometry_record: GeometryAttemptRecord | None,
+    chemistry_records: tuple[ChemistryAuditRecord, ...],
+) -> StructureFailureTriageExample:
+    chemistry_record = _chemistry_record_for_sample(chemistry_records, failure.sample_id)
+    return StructureFailureTriageExample(
+        domain="geometry",
+        sample_id=failure.sample_id,
+        failure_type=failure.failure_type,
+        stage=failure.stage,
+        message=failure.message,
+        method=failure.method_name,
+        recommended_action=failure.recommended_action,
+        raw_smiles=(
+            geometry_record.raw_smiles
+            if geometry_record is not None
+            else chemistry_record.raw_smiles
+            if chemistry_record is not None
+            else None
+        ),
+        canonical_smiles=(
+            geometry_record.canonical_smiles
+            if geometry_record is not None
+            else chemistry_record.canonical_smiles
+            if chemistry_record is not None
+            else None
+        ),
+        standardized_smiles=(
+            geometry_record.standardized_smiles
+            if geometry_record is not None
+            else chemistry_record.standardized_smiles
+            if chemistry_record is not None
+            else None
+        ),
+        capped_smiles=(
+            geometry_record.capped_smiles
+            if geometry_record is not None
+            else chemistry_record.capped_smiles
+            if chemistry_record is not None
+            else None
+        ),
+        selected_input_representation=(
+            geometry_record.input_representation if geometry_record is not None else None
+        ),
+        selected_input_smiles=(
+            geometry_record.selected_input_smiles if geometry_record is not None else None
+        ),
+        attachment_points=(
+            geometry_record.attachment_points
+            if geometry_record is not None
+            else chemistry_record.attachment_points
+            if chemistry_record is not None
+            else ()
+        ),
+        runtime_seconds=(
+            geometry_record.timing.runtime_seconds if geometry_record is not None else None
+        ),
+        fallback_provenance=(
+            tuple(
+                fallback.model_dump(mode="json") for fallback in geometry_record.fallback_provenance
+            )
+            if geometry_record is not None
+            else ()
+        ),
+        structure_detail_available=chemistry_record is not None,
+    )
+
+
+def _chemistry_record_for_sample(
+    records: tuple[ChemistryAuditRecord, ...],
+    sample_id: str,
+) -> ChemistryAuditRecord | None:
+    return next((record for record in records if record.sample_id == sample_id), None)
 
 
 def _matches_status_filter(

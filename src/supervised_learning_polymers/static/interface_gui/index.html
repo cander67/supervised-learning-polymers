@@ -92,6 +92,44 @@
           </div>
         </div>
         <div id="structure-state" class="inline-state">Loading structures</div>
+        <section class="triage-workbench" aria-labelledby="triage-heading">
+          <div class="section-header">
+            <h3 id="triage-heading">Failure Triage</h3>
+            <div id="triage-pattern-guide" class="pattern-guide"></div>
+          </div>
+          <div class="triage-grid">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Group</th>
+                    <th>Count</th>
+                    <th>Examples</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="triage-group-rows"></tbody>
+              </table>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sample</th>
+                    <th>Stage</th>
+                    <th>Method</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody id="triage-example-rows"></tbody>
+              </table>
+            </div>
+            <article class="triage-detail">
+              <h3>Selected Failure</h3>
+              <div id="triage-detail-panel"></div>
+            </article>
+          </div>
+        </section>
         <div class="structure-grid">
           <div class="table-wrap structure-results">
             <table>

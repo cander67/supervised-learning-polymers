@@ -63,6 +63,8 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
                 .list_structures(query, status_filter)
                 .model_dump(mode="json")
             )
+        elif route == "/api/structure-failures":
+            self._send_json(self._structure_bundle().failure_triage().model_dump(mode="json"))
         elif route.startswith("/api/structures/") and route.endswith("/depiction.svg"):
             sample_id = unquote(
                 route.removeprefix("/api/structures/").removesuffix("/depiction.svg")

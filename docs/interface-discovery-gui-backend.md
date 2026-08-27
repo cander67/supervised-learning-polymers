@@ -24,6 +24,8 @@ Backend endpoints:
 
 - `GET /api/health`: server health check.
 - `GET /api/artifact`: validated `InterfaceDiscoveryArtifact` JSON.
+- `GET /api/structure-failures`: normalized chemistry and geometry failure triage groups and
+  examples loaded from `failures.json` where available.
 - `GET /api/structures`: searchable structure summaries, with optional `query` and `status`
   parameters.
 - `GET /api/structures/<sample-id>`: selected structure detail payload with SMILES, 2D, 3D,
@@ -76,6 +78,19 @@ Geometry status semantics are visible per selected sample:
 - `not_generated`: chemistry is valid, but no geometry record exists for the sample.
 - `artifact_missing`: the referenced geometry records artifact cannot be resolved.
 - `chemistry_failed`: upstream chemistry failed before geometry review was possible.
+
+The failure triage panel starts from aggregate chemistry and geometry failure groups, then opens
+representative examples from `failures.json`. Examples include raw, canonical, standardized, capped,
+and selected geometry-input SMILES when artifact data exists. Geometry examples also include method,
+stage, runtime, recommended action, and fallback provenance. A triage example can be marked
+`failure file only` when it is available in `failures.json` but does not have a loaded joined
+structure record, which keeps large-run failure inspection distinct from the current paged/searchable
+structure list.
+
+The triage pattern guide keeps the PRD 04 full-run failure taxonomy visible: embedding failures,
+parse errors, optimization failures, unsupported wildcard atoms, and method-unavailable failures are
+displayed as distinct categories when present. The viewer does not implement retry policy, fallback
+backend execution, chemistry correction workflows, molecule-size bins, or coverage-bias modeling.
 
 The 3D panel uses a vendored 3Dmol.js browser build:
 
