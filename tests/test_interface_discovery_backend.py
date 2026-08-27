@@ -83,13 +83,19 @@ def test_backend_serves_static_gui_assets() -> None:
     assert 'id="structure-status-panel"' in index
     assert 'id="structure-provenance-panel"' in index
     assert 'id="structure-panel-states"' in index
-    assert "const nativeFetch = window.fetch.bind(window);" in app_js
+    assert "window.__nativeFetch = window.fetch;" in index
+    assert "const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);" in app_js
     assert 'nativeFetch("/api/artifact")' in app_js
     assert 'src="/vendor/3dmol/3Dmol-min.js"' in index
+    assert index.index("window.__nativeFetch = window.fetch;") < index.index(
+        'src="/vendor/3dmol/3Dmol-min.js"',
+    )
+    assert index.index('src="/vendor/3dmol/3Dmol-min.js"') < index.index('src="/app.js"')
     assert "loadStructures" in app_js
     assert "selectStructure" in app_js
     assert "renderDepictionPanel" in app_js
     assert "renderConformerPanel" in app_js
+    assert "geometryUnavailableAction" in app_js
     assert 'window["3Dmol"]' in app_js
     assert "smilesVariantField" in app_js
     assert "fallback_provenance" in app_js
@@ -105,6 +111,8 @@ def test_backend_serves_static_gui_assets() -> None:
     assert ".depiction-panel" in css
     assert ".conformer-panel" in css
     assert ".molecule-viewer" in css
+    assert "position: relative;" in css
+    assert "overflow: hidden;" in css
     assert ".badge-selected" in css
 
 

@@ -349,8 +349,10 @@ h3 {
 }
 
 .molecule-viewer {
+  position: relative;
   width: 100%;
-  min-height: 260px;
+  height: 260px;
+  overflow: hidden;
   border: 1px solid #d4ddd7;
   border-radius: 8px;
   background: #ffffff;

@@ -8,7 +8,7 @@ const state = {
   selectedStructureId: null,
 };
 
-const nativeFetch = window.fetch.bind(window);
+const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);
 
 const text = (value) => document.createTextNode(value);
 
@@ -454,6 +454,10 @@ function renderConformerPanel(detail) {
     if (detail.geometry.timing) {
       rows.push(field("Runtime", `${detail.geometry.timing.runtime_seconds}s`));
     }
+    if (!detail.geometry.failure) {
+      rows.push(field("SDF", "unavailable"));
+      rows.push(field("Action", geometryUnavailableAction(detail.geometry.status)));
+    }
     rows.forEach((row) => panel.appendChild(row));
     return;
   }
@@ -476,6 +480,19 @@ function renderConformerPanel(detail) {
   viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.22 } });
   viewer.zoomTo();
   viewer.render();
+}
+
+function geometryUnavailableAction(status) {
+  if (status === "not_generated") {
+    return "Generate geometry artifacts for this sample to view a 3D conformer.";
+  }
+  if (status === "artifact_missing") {
+    return "Resolve the geometry records artifact path for this run.";
+  }
+  if (status === "chemistry_failed") {
+    return "Fix the upstream chemistry record before geometry can be generated.";
+  }
+  return "Inspect upstream artifact provenance for this sample.";
 }
 
 function renderDepictionPanel(detail) {

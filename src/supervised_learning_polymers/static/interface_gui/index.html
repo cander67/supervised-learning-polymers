@@ -197,7 +197,10 @@
         </div>
       </section>
     </main>
-    <script src="/app.js"></script>
+    <script>
+      window.__nativeFetch = window.fetch;
+    </script>
     <script src="/vendor/3dmol/3Dmol-min.js"></script>
+    <script src="/app.js"></script>
   </body>
 </html>
