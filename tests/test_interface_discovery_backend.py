@@ -92,6 +92,7 @@ def test_backend_serves_static_gui_assets() -> None:
     assert 'id="structure-2d-panel"' in index
     assert 'id="structure-3d-panel"' in index
     assert 'id="structure-graph-panel"' in index
+    assert 'id="structure-downstream-panel"' in index
     assert 'id="graph-mode"' in index
     assert 'id="structure-status-panel"' in index
     assert 'id="structure-provenance-panel"' in index
@@ -116,6 +117,8 @@ def test_backend_serves_static_gui_assets() -> None:
     assert "renderDepictionPanel" in app_js
     assert "renderConformerPanel" in app_js
     assert "renderGraphPanel" in app_js
+    assert "renderDownstreamPanel" in app_js
+    assert "downstream.references" in app_js
     assert "graphElements" in app_js
     assert "renderGraphSelectionDetail" in app_js
     assert "selectGraphElement" in app_js
@@ -152,6 +155,7 @@ def test_backend_serves_static_gui_assets() -> None:
     assert ".graph-detail-panel" in css
     assert ".graph-reset-button" in css
     assert ".graph-inspection-select" in css
+    assert ".downstream-reference" in css
     assert ".molecule-viewer" in css
     assert "position: relative;" in css
     assert "overflow: hidden;" in css
@@ -399,6 +403,77 @@ def test_backend_serves_graph_preview_payload_for_fixture_sample() -> None:
     assert detail["graph"]["nodes"][2]["coordinates_2d"] == [-5.165, -4.814]
     assert detail["graph"]["nodes"][2]["coordinates_3d"] == [-6.13, 3.729, 1.809]
     assert graph == detail["graph"]
+
+
+def test_structure_detail_links_downstream_artifacts_for_fixture_sample() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["downstream"]["status"] == "available"
+    assert detail["downstream"]["artifact_path"] == (
+        "artifacts/downstream/downstream-links-fixture-v1/records.json"
+    )
+    assert detail["downstream"]["references"] == [
+        {
+            "run_id": "run-interface-discovery-fixture-001",
+            "model_family": "ridge",
+            "target": "Tg",
+            "metric": "mean_absolute_error",
+            "split": "validation",
+            "prediction_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/predictions.csv"
+            ),
+            "prediction_ref": "predictions.csv#sample_id=poly-0001&target=Tg",
+            "diagnostic_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/diagnostics.json"
+            ),
+            "diagnostic_ref": "diagnostics.json#sample_id=poly-0001",
+        },
+        {
+            "run_id": "run-interface-discovery-fixture-001",
+            "model_family": "ridge",
+            "target": "FFV",
+            "metric": "weighted_mean_absolute_error",
+            "split": "validation",
+            "prediction_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/predictions.csv"
+            ),
+            "prediction_ref": "predictions.csv#sample_id=poly-0001&target=FFV",
+            "diagnostic_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/coverage.json"
+            ),
+            "diagnostic_ref": "coverage.json#sample_id=poly-0001",
+        },
+    ]
+
+
+def test_structure_detail_reports_unavailable_downstream_links_without_error() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0005"))
+
+    assert detail["downstream"]["status"] == "not_available"
+    assert detail["downstream"]["references"] == []
+    assert detail["downstream"]["message"] == (
+        "No downstream model artifacts are linked for this sample."
+    )
+
+
+def test_structure_detail_reports_missing_downstream_link_artifact(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    fixture["run_metadata"]["artifact_paths"]["downstream_links"] = (
+        "artifacts/downstream/missing-fixture/records.json"
+    )
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["downstream"]["status"] == "artifact_missing"
+    assert detail["downstream"]["references"] == []
+    assert detail["downstream"]["message"] == (
+        "The configured downstream artifact links could not be resolved."
+    )
 
 
 def test_3d_graph_mode_requires_successful_geometry_record(tmp_path: Path) -> None:

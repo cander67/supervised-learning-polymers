@@ -559,6 +559,7 @@ function renderStructureDetail(detail) {
   renderDepictionPanel(detail);
   renderConformerPanel(detail);
   renderGraphPanel(detail);
+  renderDownstreamPanel(detail);
 
   const statusRows = [
     field("Chemistry", detail.chemistry_status),
@@ -620,9 +621,42 @@ function renderStructureDetail(detail) {
         ? `${detail.graph.nodes.length} nodes / ${detail.graph.edges.length} edges`
         : statusLabel(detail.graph.status),
     ),
+    field(
+      "Downstream",
+      detail.downstream.status === "available"
+        ? `${detail.downstream.references.length} linked artifact(s)`
+        : statusLabel(detail.downstream.status),
+    ),
   ]);
 
   renderStructureRows(state.structureRows);
+}
+
+function renderDownstreamPanel(detail) {
+  const panel = document.getElementById("structure-downstream-panel");
+  clear(panel);
+  if (detail.downstream.status !== "available") {
+    panel.appendChild(field("Status", statusLabel(detail.downstream.status)));
+    panel.appendChild(
+      field("Message", detail.downstream.message || "No downstream artifacts are linked."),
+    );
+    return;
+  }
+
+  detail.downstream.references.forEach((reference, index) => {
+    const group = document.createElement("div");
+    group.className = "downstream-reference";
+    group.append(
+      field("Link", String(index + 1)),
+      field("Run", reference.run_id),
+      field("Model family", reference.model_family),
+      field("Target", reference.target),
+      field("Metric", `${reference.metric} (${reference.split})`),
+      field("Prediction", reference.prediction_ref || reference.prediction_artifact_path || "n/a"),
+      field("Diagnostic", reference.diagnostic_ref || reference.diagnostic_artifact_path || "n/a"),
+    );
+    panel.appendChild(group);
+  });
 }
 
 function renderGraphPanel(detail) {
@@ -998,6 +1032,7 @@ function renderEmptyStructureDetail() {
   renderList("structure-2d-panel", [field("Status", "No selected structure")]);
   renderList("structure-3d-panel", [field("Status", "No selected structure")]);
   renderList("structure-graph-panel", [field("Status", "No selected structure")]);
+  renderList("structure-downstream-panel", [field("Status", "No selected structure")]);
   renderList("structure-status-panel", [field("Status", "No selected structure")]);
   renderList("structure-provenance-panel", [
     field("Chemistry records", state.artifact?.run_metadata.artifact_paths.chemistry_records || "n/a"),
@@ -1008,6 +1043,7 @@ function renderEmptyStructureDetail() {
     field("2D", "unavailable"),
     field("3D", "unavailable"),
     field("Graph", "unavailable"),
+    field("Downstream", "unavailable"),
   ]);
 }
 

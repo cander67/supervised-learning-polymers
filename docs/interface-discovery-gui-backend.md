@@ -28,8 +28,8 @@ Backend endpoints:
   examples loaded from `failures.json` where available.
 - `GET /api/structures`: searchable structure summaries, with optional `query` and `status`
   parameters.
-- `GET /api/structures/<sample-id>`: selected structure detail payload with SMILES, 2D, 3D,
-  chemistry, geometry, and provenance states.
+- `GET /api/structures/<sample-id>`: selected structure detail payload with SMILES, 2D, 3D, graph,
+  downstream artifact, chemistry, geometry, and provenance states.
 - `GET /api/structures/<sample-id>/depiction.svg`: on-demand RDKit 2D SVG depiction for valid
   chemistry records.
 - `GET /api/structures/<sample-id>/geometry.sdf`: persisted SDF conformer payload for successful
@@ -72,6 +72,8 @@ PRD 13 adds a structure browser inside the same local GUI shell. It consumes che
 - 2D: on-demand RDKit SVG from the selected validated SMILES representation.
 - 3D: persisted SDF text from PRD 4 geometry artifacts.
 - Graph: project-owned node/edge JSON with optional 2D and 3D coordinates.
+- Downstream: optional model, prediction, metric, and diagnostic artifact references keyed by
+  `sample_id`.
 
 Geometry status semantics are visible per selected sample:
 
@@ -140,6 +142,19 @@ bonds directly or through compact atom/bond selectors to inspect stable identiti
 coordinates, bond order, and feature dictionaries.
 Production graph generation, graph editing, subgraph extraction, path or neighbor algorithms,
 embeddings, and PRD 09 model-pipeline integration remain deferred to later PRDs.
+
+Downstream link records are optional. When available,
+`run_metadata.artifact_paths.downstream_links` points at a JSON list keyed by `sample_id`. Each
+record contains one or more references with:
+
+- `run_id`, `model_family`, `target`, `metric`, and `split`.
+- Optional `prediction_artifact_path` and `prediction_ref`.
+- Optional `diagnostic_artifact_path` and `diagnostic_ref`.
+
+Missing downstream links are displayed as unavailable per sample rather than as errors. This gives
+later baseline, graph, geometry-aware, and final-comparison PRDs a stable place to attach
+predictions, failures, coverage differences, and diagnostics without requiring those model workflows
+inside PRD 13.
 
 ## Tradeoffs
 

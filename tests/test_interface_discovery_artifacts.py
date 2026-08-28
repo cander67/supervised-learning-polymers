@@ -76,6 +76,9 @@ def test_interface_discovery_fixture_includes_geometry_summary_for_viewer_workbe
     assert artifact.run_metadata.artifact_paths["graph_records"] == (
         "artifacts/graphs/graph-fixture-v1/records.json"
     )
+    assert artifact.run_metadata.artifact_paths["downstream_links"] == (
+        "artifacts/downstream/downstream-links-fixture-v1/records.json"
+    )
 
 
 def test_interface_discovery_fixture_includes_weighted_mae_metadata() -> None:

@@ -30,6 +30,7 @@ GeometryViewerStatus = Literal[
 ]
 GraphViewerStatus = Literal["available", "not_generated", "artifact_missing"]
 GraphCoordinateMode = Literal["2d", "3d"]
+DownstreamViewerStatus = Literal["available", "not_available", "artifact_missing"]
 StructureStatusFilter = Literal[
     "all",
     "geometry_success",
@@ -166,6 +167,36 @@ class StructureGraphPayload(ContractModel):
     message: str | None = Field(default=None, min_length=1)
 
 
+class StructureDownstreamReference(ContractModel):
+    """One downstream artifact reference linked to a structure sample."""
+
+    run_id: str = Field(min_length=1)
+    model_family: str = Field(min_length=1)
+    target: str = Field(min_length=1)
+    metric: str = Field(min_length=1)
+    split: str = Field(min_length=1)
+    prediction_artifact_path: str | None = Field(default=None, min_length=1)
+    prediction_ref: str | None = Field(default=None, min_length=1)
+    diagnostic_artifact_path: str | None = Field(default=None, min_length=1)
+    diagnostic_ref: str | None = Field(default=None, min_length=1)
+
+
+class StructureDownstreamRecord(ContractModel):
+    """Downstream references keyed by sample identity."""
+
+    sample_id: str = Field(min_length=1)
+    references: tuple[StructureDownstreamReference, ...] = Field(min_length=1)
+
+
+class StructureDownstreamPayload(ContractModel):
+    """Downstream artifact panel state for a selected structure."""
+
+    status: DownstreamViewerStatus
+    artifact_path: str | None = Field(default=None, min_length=1)
+    references: tuple[StructureDownstreamReference, ...] = Field(default_factory=tuple)
+    message: str | None = Field(default=None, min_length=1)
+
+
 class StructureRecordSummary(ContractModel):
     """Search-result row for a structure record."""
 
@@ -187,6 +218,7 @@ class StructureRecordDetail(ContractModel):
     geometry: StructureGeometryPayload
     depiction: StructureDepictionPayload
     graph: StructureGraphPayload
+    downstream: StructureDownstreamPayload
     chemistry_failure: ChemistryFailureRecord | None = None
 
 
@@ -251,6 +283,7 @@ class StructureArtifactBundle:
         self._chemistry_records = _load_chemistry_records(artifact, self.artifact_path)
         self._geometry_records = _load_geometry_records(artifact, self.artifact_path)
         self._graph_records = _load_graph_records(artifact, self.artifact_path)
+        self._downstream_records = _load_downstream_records(artifact, self.artifact_path)
         self._chemistry_failures = _load_chemistry_failures(
             artifact,
             self.artifact_path,
@@ -373,6 +406,11 @@ class StructureArtifactBundle:
                 self.artifact.run_metadata.artifact_paths.get("graph_records"),
                 geometry_record,
             ),
+            downstream=_downstream_payload(
+                chemistry_record,
+                self._downstream_records,
+                self.artifact.run_metadata.artifact_paths.get("downstream_links"),
+            ),
             chemistry_failure=chemistry_failure,
         )
 
@@ -420,6 +458,23 @@ def _load_graph_records(
     return {
         record.sample_id: record
         for record in (StructureGraphRecord.model_validate(record) for record in payload)
+    }
+
+
+def _load_downstream_records(
+    artifact: InterfaceDiscoveryArtifact,
+    artifact_path: Path,
+) -> dict[str, StructureDownstreamRecord] | None:
+    path = _resolve_artifact_path(
+        artifact.run_metadata.artifact_paths.get("downstream_links"),
+        artifact_path,
+    )
+    if path is None:
+        return None
+    payload = loads(path.read_text())
+    return {
+        record.sample_id: record
+        for record in (StructureDownstreamRecord.model_validate(record) for record in payload)
     }
 
 
@@ -684,6 +739,38 @@ def _graph_payload(
         missing_features=graph_record.missing_features,
         nodes=nodes,
         edges=graph_record.edges,
+    )
+
+
+def _downstream_payload(
+    chemistry_record: ChemistryAuditRecord,
+    downstream_records: dict[str, StructureDownstreamRecord] | None,
+    downstream_records_path: str | None,
+) -> StructureDownstreamPayload:
+    if downstream_records is None:
+        if downstream_records_path is None:
+            return StructureDownstreamPayload(
+                status="not_available",
+                message="No downstream artifact links are configured for this run.",
+            )
+        return StructureDownstreamPayload(
+            status="artifact_missing",
+            artifact_path=downstream_records_path,
+            message="The configured downstream artifact links could not be resolved.",
+        )
+
+    downstream_record = downstream_records.get(chemistry_record.sample_id)
+    if downstream_record is None:
+        return StructureDownstreamPayload(
+            status="not_available",
+            artifact_path=downstream_records_path,
+            message="No downstream model artifacts are linked for this sample.",
+        )
+
+    return StructureDownstreamPayload(
+        status="available",
+        artifact_path=downstream_records_path,
+        references=downstream_record.references,
     )
 
 

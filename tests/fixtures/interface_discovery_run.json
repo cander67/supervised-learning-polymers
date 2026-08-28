@@ -197,6 +197,7 @@
       "geometry_metadata": "artifacts/geometry/geometry-rdkit-fixture-v1/metadata.json",
       "geometry_records": "artifacts/geometry/geometry-rdkit-fixture-v1/records.json",
       "geometry_summary": "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json",
+      "downstream_links": "artifacts/downstream/downstream-links-fixture-v1/records.json",
       "graph_records": "artifacts/graphs/graph-fixture-v1/records.json",
       "manifest": "artifacts/interface-discovery/run-interface-discovery-fixture-001/manifest.json",
       "metrics": "artifacts/interface-discovery/run-interface-discovery-fixture-001/metrics.json"
