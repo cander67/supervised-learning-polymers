@@ -143,13 +143,13 @@
   },
   "geometry_summary": {
     "total_chemistry_valid_records": 6,
-    "attempted_records": 4,
-    "successful_records": 2,
+    "attempted_records": 5,
+    "successful_records": 3,
     "failed_records": 2,
-    "skipped_records": 2,
+    "skipped_records": 1,
     "skipped_fallback_records": 2,
-    "coverage_fraction": 0.3333333333333333,
-    "total_runtime_seconds": 0.318,
+    "coverage_fraction": 0.5,
+    "total_runtime_seconds": 0.551,
     "failure_groups": [
       {
         "failure_type": "embedding_failed",

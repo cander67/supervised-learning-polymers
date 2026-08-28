@@ -47,9 +47,9 @@ def test_backend_serves_artifact_backed_json_endpoint() -> None:
         "artifacts/chemistry/chemistry-audit-fixture-v1/summary.json"
     )
     assert artifact["geometry_summary"]["total_chemistry_valid_records"] == 6
-    assert artifact["geometry_summary"]["successful_records"] == 2
+    assert artifact["geometry_summary"]["successful_records"] == 3
     assert artifact["geometry_summary"]["failed_records"] == 2
-    assert artifact["geometry_summary"]["skipped_records"] == 2
+    assert artifact["geometry_summary"]["skipped_records"] == 1
     assert artifact["run_metadata"]["artifact_paths"]["geometry_summary"] == (
         "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json"
     )
@@ -221,12 +221,12 @@ def test_structure_status_filter_returns_fixture_backed_browser_states() -> None
     assert [record["sample_id"] for record in successes["records"]] == [
         "poly-0001",
         "poly-0002",
+        "1125785790",
     ]
     assert [record["sample_id"] for record in failures["records"]] == ["poly-0006"]
     assert [record["sample_id"] for record in not_generated["records"]] == [
         "poly-0003",
         "poly-0005",
-        "1125785790",
     ]
     assert [record["sample_id"] for record in chemistry_failed["records"]] == [
         "poly-0004",
@@ -349,7 +349,8 @@ def test_backend_serves_graph_preview_payload_for_fixture_sample() -> None:
         graph = loads(fetch_text(f"{base_url}/api/structures/1125785790/graph.json"))
 
     assert detail["sample_id"] == "1125785790"
-    assert detail["geometry"]["status"] == "not_generated"
+    assert detail["geometry"]["status"] == "success"
+    assert detail["geometry"]["payload_ref"] == "/api/structures/1125785790/geometry.sdf"
     assert detail["graph"]["status"] == "available"
     assert detail["graph"]["payload_ref"] == "/api/structures/1125785790/graph.json"
     assert detail["graph"]["graph_config_id"] == "graph-fixture-v1"
@@ -362,6 +363,34 @@ def test_backend_serves_graph_preview_payload_for_fixture_sample() -> None:
     assert detail["graph"]["nodes"][2]["coordinates_2d"] == [-5.165, -4.814]
     assert detail["graph"]["nodes"][2]["coordinates_3d"] == [-6.13, 3.729, 1.809]
     assert graph == detail["graph"]
+
+
+def test_3d_graph_mode_requires_successful_geometry_record(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    geometry_records_path = tmp_path / "geometry-records-without-graph-sample.json"
+    geometry_records = loads(
+        (
+            FIXTURE_PATH.parent
+            / "structure_viewer_artifacts/geometry/geometry-rdkit-fixture-v1/records.json"
+        ).read_text()
+    )
+    geometry_records_path.write_text(
+        dumps([record for record in geometry_records if record["sample_id"] != "1125785790"]) + "\n"
+    )
+    fixture["run_metadata"]["artifact_paths"]["geometry_records"] = str(geometry_records_path)
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/1125785790"))
+        graph = loads(fetch_text(f"{base_url}/api/structures/1125785790/graph.json"))
+
+    assert detail["geometry"]["status"] == "not_generated"
+    assert detail["graph"]["status"] == "available"
+    assert detail["graph"]["coordinate_modes"] == ["2d"]
+    assert detail["graph"]["nodes"][2]["coordinates_3d"] is None
+    assert graph["coordinate_modes"] == ["2d"]
+    assert graph["nodes"][2]["coordinates_3d"] is None
 
 
 def test_graph_state_distinguishes_missing_artifact_from_not_generated(tmp_path: Path) -> None:

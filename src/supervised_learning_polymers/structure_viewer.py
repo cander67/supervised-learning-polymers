@@ -371,6 +371,7 @@ class StructureArtifactBundle:
                 chemistry_record,
                 self._graph_records,
                 self.artifact.run_metadata.artifact_paths.get("graph_records"),
+                geometry_record,
             ),
             chemistry_failure=chemistry_failure,
         )
@@ -641,6 +642,7 @@ def _graph_payload(
     chemistry_record: ChemistryAuditRecord,
     graph_records: dict[str, StructureGraphRecord] | None,
     graph_records_path: str | None,
+    geometry_record: GeometryAttemptRecord | None,
 ) -> StructureGraphPayload:
     if graph_records is None:
         if graph_records_path is None:
@@ -662,14 +664,25 @@ def _graph_payload(
             message="No graph record is available for this sample.",
         )
 
+    coordinate_modes = tuple(graph_record.coordinate_modes)
+    if not (
+        geometry_record is not None
+        and geometry_record.status == "success"
+        and geometry_record.sdf_text is not None
+    ):
+        coordinate_modes = tuple(mode for mode in coordinate_modes if mode != "3d")
+    nodes = graph_record.nodes
+    if "3d" not in coordinate_modes:
+        nodes = tuple(node.model_copy(update={"coordinates_3d": None}) for node in nodes)
+
     return StructureGraphPayload(
         status="available",
         graph_config_id=graph_record.graph_config_id,
         artifact_path=graph_records_path,
         payload_ref=f"/api/structures/{chemistry_record.sample_id}/graph.json",
-        coordinate_modes=graph_record.coordinate_modes,
+        coordinate_modes=coordinate_modes,
         missing_features=graph_record.missing_features,
-        nodes=graph_record.nodes,
+        nodes=nodes,
         edges=graph_record.edges,
     )
 

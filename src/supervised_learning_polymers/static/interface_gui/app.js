@@ -634,6 +634,11 @@ function renderGraphPanel(detail) {
   const mode = detail.graph.coordinate_modes.includes(state.graphMode)
     ? state.graphMode
     : detail.graph.coordinate_modes[0];
+  if (!mode) {
+    panel.appendChild(field("Status", "not generated"));
+    panel.appendChild(field("Message", "No displayable graph coordinate mode is available."));
+    return;
+  }
   state.graphMode = mode;
   modeSelect.value = mode;
 
@@ -658,7 +663,7 @@ function renderGraphPanel(detail) {
 }
 
 function syncGraphModeControl(graph, modeSelect) {
-  const modes = graph.coordinate_modes?.length ? graph.coordinate_modes : ["2d", "3d"];
+  const modes = graph.coordinate_modes || [];
   [...modeSelect.options].forEach((option) => {
     option.disabled = !modes.includes(option.value);
   });
