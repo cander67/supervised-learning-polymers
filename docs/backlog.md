@@ -26,7 +26,7 @@ Status legend:
 
 | Order | Status | PRD | Scope | Notes |
 | --- | --- | --- | --- | --- |
-| 5 | Ready for review | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | Implemented locally with deterministic fixture coverage for chemistry/geometry records, failure triage, Cytoscape graph inspection, and downstream artifact links. |
+| 5 | Active | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | Reopened for Phase 9 review hardening so local chemistry and geometry artifact bundles can launch directly without hand-authored wrapper JSON. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -55,5 +55,5 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
   depend on exists.
 - Update this backlog when a PRD enters implementation, reaches review, or is split into smaller
   PRDs.
-- Keep PRD 13 at ready-for-review status until PRD-level review closes; later accepted status should
-  follow only after review, not merely after implementation.
+- Return PRD 13 to ready-for-review status only after the real-local-artifact launcher is
+  implemented, verified against existing local artifacts, and documented.

@@ -77,14 +77,15 @@ pulled forward because it becomes useful earlier than originally planned.
 
 - Accepted PRDs: PRD 01 benchmark contract, PRD 02 public interface discovery, PRD 03
   full-training-set chemistry audit, and PRD 04 early 3D geometry groundwork.
-- PRD ready for review: PRD 13 structure viewer and validation workbench.
+- Active PRD: PRD 13 structure viewer and validation workbench.
 - Current PRD 13 status: implemented locally with searchable structure records, SMILES comparison,
   RDKit 2D depictions, 3Dmol conformer/failure review, Cytoscape graph inspection, failure triage,
-  and optional downstream artifact links. It is not accepted until PRD-level review closes out.
+  and optional downstream artifact links. It has been reopened for Phase 9 review hardening so the
+  GUI can launch directly from real local chemistry and geometry artifact bundles.
 - Next planned implementation milestone: PRD 05 fixed-vector representations.
 - Deferred interface follow-up after real ML diagnostics: PRD 14 Cytoscape 3D projection controls.
 - Chemistry audit docs: `docs/chemistry-audit.md`
 - Geometry groundwork docs: `docs/geometry-groundwork.md`
 - Interface alignment docs: `docs/interface-discovery-gui-backend.md`
-- Review status: PRD 13 is ready for review after deterministic fixture tests and local GUI smoke
-  coverage; full-dataset visual review remains opt-in when local artifacts are available.
+- Review status: PRD 13 should return to ready for review after Phase 9 passes deterministic tests
+  and a local GUI smoke run against existing real artifacts.

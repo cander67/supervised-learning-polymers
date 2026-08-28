@@ -85,7 +85,7 @@ browser, then as a full structure and graph validation workbench once graph arti
 
 ## Implementation Review Notes
 
-Status: ready for PRD-level review. The local GUI/backend now exposes searchable structure records,
+Status: active review hardening. The local GUI/backend now exposes searchable structure records,
 coordinated SMILES, RDKit 2D, 3Dmol conformer/failure, Cytoscape graph-inspection, failure triage,
 and optional downstream-reference panels from persisted artifacts.
 
@@ -97,3 +97,7 @@ Deferred geometry-groundwork follow-ups remain out of scope: capping rerun compa
 policy, fallback method execution or selection, chemistry correction workflows, molecule-size bins,
 and coverage-bias analysis. Those should be handled by later model or geometry-hardening PRDs after
 more real ML diagnostics exist.
+
+Before returning to PRD-level review, add a real-local-artifact launcher so reviewers can start the
+same GUI directly from existing chemistry and geometry artifact bundles without manually creating an
+interface wrapper JSON.
