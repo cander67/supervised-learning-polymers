@@ -15,6 +15,16 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 - [Public interface discovery criteria](docs/interface-discovery-criteria.md)
 - [Target properties](docs/target-properties.md)
 
+## Local GUI
+
+Launch the artifact viewer and PRD 13 structure workbench with:
+
+```bash
+slp-interface-gui tests/fixtures/interface_discovery_run.json --port 8765
+```
+
+Then open `http://127.0.0.1:8765`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

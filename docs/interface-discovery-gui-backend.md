@@ -12,7 +12,7 @@ PRD 13 extends this direction with a structure validation workbench. That page s
 artifact-driven and expose coordinated panels for SMILES, 2D depiction, 3D conformer review, and
 2D/3D graph rendering rather than duplicating chemistry or modeling logic inside the browser.
 
-Start the prototype with:
+Start the local structure viewer with:
 
 ```bash
 slp-interface-gui tests/fixtures/interface_discovery_run.json --port 8765
@@ -75,6 +75,21 @@ PRD 13 adds a structure browser inside the same local GUI shell. It consumes che
 - Downstream: optional model, prediction, metric, and diagnostic artifact references keyed by
   `sample_id`.
 
+The viewer intentionally keeps the current summary path keys for now. It resolves detailed records
+from the existing bundle layout instead of requiring a larger interface fixture contract:
+
+- `chemistry_summary` should point at the chemistry audit `summary.json`. The viewer treats sibling
+  `records.json`, `failures.json`, and `metadata.json` as the detailed chemistry bundle.
+- `geometry_summary` should point at the geometry `summary.json`. The viewer treats sibling
+  `records.json`, `failures.json`, and `metadata.json` as the detailed geometry bundle.
+- `graph_records` is optional and points directly at a graph JSON list keyed by `sample_id`.
+- `downstream_links` is optional and points directly at downstream reference JSON keyed by
+  `sample_id`.
+
+Missing optional graph or downstream files disable only those panels for affected samples. Missing
+required chemistry or geometry bundle details are surfaced as explicit artifact status rather than
+silent browser errors.
+
 Geometry status semantics are visible per selected sample:
 
 - `success`: a conformer attempt succeeded and SDF text is available.
@@ -93,8 +108,9 @@ structure list.
 
 The triage pattern guide keeps the PRD 04 full-run failure taxonomy visible: embedding failures,
 parse errors, optimization failures, unsupported wildcard atoms, and method-unavailable failures are
-displayed as distinct categories when present. The viewer does not implement retry policy, fallback
-backend execution, chemistry correction workflows, molecule-size bins, or coverage-bias modeling.
+displayed as distinct categories when present. The viewer does not implement capping rerun
+comparison, ETKDG retry policy, fallback backend execution or method selection, chemistry
+correction workflows, molecule-size bins, or coverage-bias modeling.
 
 Graph records are optional. When available, `run_metadata.artifact_paths.graph_records` points at a
 JSON list keyed by `sample_id`. Each graph record contains:
@@ -176,3 +192,6 @@ inside PRD 13.
 - **Limits**: The prototype is not a long-running experiment orchestrator, authentication layer, or
   production web app. Phase 6 should decide whether to keep this path, replace it with a richer app
   stack, or retain it only as a local review utility.
+- **Review status**: PRD 13 is implemented as a local artifact viewer and ready for PRD-level
+  review. The default tests use committed deterministic fixtures; live or full-dataset visual review
+  remains opt-in when those local artifacts are available.
