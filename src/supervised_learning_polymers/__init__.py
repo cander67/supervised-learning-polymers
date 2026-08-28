@@ -19,7 +19,11 @@ from supervised_learning_polymers.chemistry import (
     write_chemistry_audit_artifacts,
 )
 from supervised_learning_polymers.geometry import GeometryFailureGroup, GeometrySummary
-from supervised_learning_polymers.interface_backend import create_interface_discovery_server
+from supervised_learning_polymers.interface_backend import (
+    build_structure_viewer_artifact,
+    create_interface_discovery_server,
+    create_structure_viewer_server,
+)
 from supervised_learning_polymers.interface_discovery import (
     ChemistryFailureGroup,
     ChemistryFailureSummary,
@@ -81,6 +85,7 @@ from supervised_learning_polymers.targets import (
 __all__ = [
     "AllTargetMode",
     "BenchmarkManifest",
+    "build_structure_viewer_artifact",
     "CappingConfig",
     "ChemistryAuditArtifact",
     "ChemistryAuditArtifactPaths",
@@ -143,6 +148,7 @@ __all__ = [
     "cap_molecule",
     "chemistry_cache_key",
     "create_interface_discovery_server",
+    "create_structure_viewer_server",
     "load_interface_discovery_artifact",
     "open_polymer_target_config",
     "render_2d_svg",

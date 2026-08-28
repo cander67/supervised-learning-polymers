@@ -12,7 +12,21 @@ PRD 13 extends this direction with a structure validation workbench. That page s
 artifact-driven and expose coordinated panels for SMILES, 2D depiction, 3D conformer review, and
 2D/3D graph rendering rather than duplicating chemistry or modeling logic inside the browser.
 
-Start the local structure viewer with:
+Start the local structure viewer against existing local chemistry and geometry artifacts with:
+
+```bash
+slp-structure-viewer \
+  --chemistry-artifact artifacts/chemistry/chemistry-audit-v1 \
+  --geometry-artifact artifacts/geometry/geometry-rdkit-v1 \
+  --port 8765
+```
+
+The chemistry and geometry inputs may be artifact directories or explicit `records.json` paths. The
+launcher resolves sibling `summary.json`, `failures.json`, and `metadata.json` files, validates that
+geometry sample IDs belong to valid chemistry records, builds the GUI wrapper in memory, and prints
+loaded counts plus the local URL.
+
+For deterministic fixture review, start the committed interface artifact with:
 
 ```bash
 slp-interface-gui tests/fixtures/interface_discovery_run.json --port 8765
@@ -89,6 +103,9 @@ from the existing bundle layout instead of requiring a larger interface fixture 
 Missing optional graph or downstream files disable only those panels for affected samples. Missing
 required chemistry or geometry bundle details are surfaced as explicit artifact status rather than
 silent browser errors.
+
+The direct artifact launcher creates those same paths automatically. Optional graph and downstream
+artifacts can be added with `--graph-records` and `--downstream-links`.
 
 Geometry status semantics are visible per selected sample:
 

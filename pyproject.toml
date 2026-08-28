@@ -62,6 +62,7 @@ Issues = "https://github.com/cander67/supervised-learning-polymers/issues"
 slp-chemistry-audit = "supervised_learning_polymers.chemistry_audit_cli:main"
 slp-geometry-feasibility = "supervised_learning_polymers.geometry_cli:main"
 slp-interface-gui = "supervised_learning_polymers.interface_backend:main"
+slp-structure-viewer = "supervised_learning_polymers.interface_backend:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]

@@ -17,13 +17,23 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 
 ## Local GUI
 
-Launch the artifact viewer and PRD 13 structure workbench with:
+Launch the artifact viewer and PRD 13 structure workbench against existing local chemistry and
+geometry artifacts with:
+
+```bash
+slp-structure-viewer \
+  --chemistry-artifact artifacts/chemistry/chemistry-audit-v1 \
+  --geometry-artifact artifacts/geometry/geometry-rdkit-v1 \
+  --port 8765
+```
+
+Then open `http://127.0.0.1:8765`.
+
+For deterministic fixture review, launch the committed interface artifact with:
 
 ```bash
 slp-interface-gui tests/fixtures/interface_discovery_run.json --port 8765
 ```
-
-Then open `http://127.0.0.1:8765`.
 
 ## License
 
