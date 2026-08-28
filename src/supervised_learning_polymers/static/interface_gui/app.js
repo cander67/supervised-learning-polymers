@@ -11,6 +11,7 @@ const state = {
   selectedFailureType: null,
   selectedFailureSampleId: null,
   graphMode: "2d",
+  graphViewer: null,
 };
 
 const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);
@@ -22,6 +23,11 @@ function setText(id, value) {
 }
 
 function clear(element) {
+  if (element.id === "structure-graph-panel" && state.graphViewer) {
+    state.graphViewer.destroy();
+    state.graphViewer = null;
+    element.graphViewer = null;
+  }
   while (element.firstChild) {
     element.removeChild(element.firstChild);
   }
@@ -653,13 +659,142 @@ function renderGraphPanel(detail) {
   );
   panel.appendChild(summary);
 
-  const canvas = document.createElement("canvas");
-  canvas.className = "graph-canvas";
-  canvas.width = 720;
-  canvas.height = 420;
-  canvas.setAttribute("aria-label", `${mode.toUpperCase()} graph for ${detail.sample_id}`);
-  panel.appendChild(canvas);
-  drawGraph(canvas, detail.graph, mode);
+  const cytoscapeLibrary = window.cytoscape;
+  if (!cytoscapeLibrary) {
+    panel.appendChild(field("Status", "Cytoscape asset unavailable"));
+    return;
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "graph-controls";
+  const atomSelect = document.createElement("select");
+  atomSelect.className = "graph-inspection-select";
+  atomSelect.setAttribute("aria-label", "Inspect graph atom");
+  atomSelect.appendChild(optionElement("", "Atom"));
+  detail.graph.nodes.forEach((node) => {
+    atomSelect.appendChild(
+      optionElement(`atom-${node.atom_index}`, `${node.atom_index} ${node.element}`),
+    );
+  });
+  const edgeSelect = document.createElement("select");
+  edgeSelect.className = "graph-inspection-select";
+  edgeSelect.setAttribute("aria-label", "Inspect graph bond");
+  edgeSelect.appendChild(optionElement("", "Bond"));
+  detail.graph.edges.forEach((edge) => {
+    edgeSelect.appendChild(
+      optionElement(`bond-${edge.source}-${edge.target}`, `${edge.source} -> ${edge.target}`),
+    );
+  });
+  const resetButton = document.createElement("button");
+  resetButton.type = "button";
+  resetButton.className = "graph-reset-button";
+  resetButton.textContent = "Reset view";
+  controls.append(atomSelect, edgeSelect, resetButton);
+  panel.appendChild(controls);
+
+  const viewport = document.createElement("div");
+  viewport.className = "graph-viewport";
+  viewport.setAttribute("aria-label", `${mode.toUpperCase()} graph for ${detail.sample_id}`);
+  panel.appendChild(viewport);
+
+  const detailPanel = document.createElement("div");
+  detailPanel.className = "graph-detail-panel";
+  panel.appendChild(detailPanel);
+
+  const elements = graphElements(detail.graph, mode);
+  if (!elements.nodes.length) {
+    detailPanel.appendChild(field("Status", "No coordinates available for selected graph mode."));
+    return;
+  }
+
+  state.graphViewer = cytoscapeLibrary({
+    container: viewport,
+    elements: [...elements.nodes, ...elements.edges],
+    layout: { name: "preset", fit: true, padding: 24 },
+    minZoom: 0.2,
+    maxZoom: 8,
+    wheelSensitivity: 0.22,
+    style: [
+      {
+        selector: "node",
+        style: {
+          "background-color": "data(color)",
+          "border-color": "data(borderColor)",
+          "border-width": "data(borderWidth)",
+          color: "#1f2933",
+          content: "data(label)",
+          "font-size": 8,
+          "text-valign": "center",
+          "text-halign": "center",
+          height: "data(size)",
+          width: "data(size)",
+        },
+      },
+      {
+        selector: "edge",
+        style: {
+          "curve-style": "straight",
+          "line-color": "data(color)",
+          width: "data(width)",
+        },
+      },
+      {
+        selector: ":selected",
+        style: {
+          "border-color": "#2457a6",
+          "border-width": 4,
+          "line-color": "#2457a6",
+          "target-arrow-color": "#2457a6",
+        },
+      },
+      {
+        selector: ".hovered",
+        style: {
+          "overlay-color": "#2457a6",
+          "overlay-opacity": 0.16,
+          "overlay-padding": 8,
+        },
+      },
+    ],
+  });
+  panel.graphViewer = state.graphViewer;
+  renderGraphSelectionDetail(detailPanel, null, mode);
+  state.graphViewer.on("mouseover", "node, edge", (event) => {
+    event.target.addClass("hovered");
+  });
+  state.graphViewer.on("mouseout", "node, edge", (event) => {
+    event.target.removeClass("hovered");
+  });
+  state.graphViewer.on("select", "node, edge", (event) => {
+    const selectedId = event.target.id();
+    atomSelect.value = event.target.isNode() ? selectedId : "";
+    edgeSelect.value = event.target.isEdge() ? selectedId : "";
+    renderGraphSelectionDetail(detailPanel, event.target.data("record"), mode);
+  });
+  state.graphViewer.on("unselect", "node, edge", () => {
+    if (!state.graphViewer.$(":selected").length) {
+      atomSelect.value = "";
+      edgeSelect.value = "";
+      renderGraphSelectionDetail(detailPanel, null, mode);
+    }
+  });
+  atomSelect.addEventListener("change", () => {
+    selectGraphElement(atomSelect.value, detailPanel, mode);
+  });
+  edgeSelect.addEventListener("change", () => {
+    selectGraphElement(edgeSelect.value, detailPanel, mode);
+  });
+  resetButton.addEventListener("click", () => {
+    state.graphViewer.fit(undefined, 24);
+    state.graphViewer.center();
+  });
+}
+
+function optionElement(value, label) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.appendChild(text(label));
+  return option;
 }
 
 function syncGraphModeControl(graph, modeSelect) {
@@ -670,70 +805,41 @@ function syncGraphModeControl(graph, modeSelect) {
   modeSelect.disabled = graph.status !== "available";
 }
 
-function drawGraph(canvas, graph, mode) {
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const coordinates = graph.nodes.map((node) => ({
-    node,
-    point: graphPoint(node, mode),
-  }));
-  const drawable = coordinates.filter((entry) => entry.point);
-  if (!drawable.length) {
-    ctx.fillStyle = "#7a4b00";
-    ctx.fillText("No coordinates available for selected graph mode.", 18, 28);
-    return;
-  }
-
-  const bounds = drawable.reduce(
-    (acc, entry) => ({
-      minX: Math.min(acc.minX, entry.point.x),
-      maxX: Math.max(acc.maxX, entry.point.x),
-      minY: Math.min(acc.minY, entry.point.y),
-      maxY: Math.max(acc.maxY, entry.point.y),
-    }),
-    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
-  );
-  const padding = 32;
-  const spanX = Math.max(bounds.maxX - bounds.minX, 1);
-  const spanY = Math.max(bounds.maxY - bounds.minY, 1);
-  const scale = Math.min(
-    (canvas.width - padding * 2) / spanX,
-    (canvas.height - padding * 2) / spanY,
-  );
+function graphElements(graph, mode) {
   const positions = new Map();
-  drawable.forEach((entry) => {
-    positions.set(entry.node.atom_index, {
-      x: padding + (entry.point.x - bounds.minX) * scale,
-      y: canvas.height - padding - (entry.point.y - bounds.minY) * scale,
-    });
+  const nodes = graph.nodes.flatMap((node) => {
+    const point = graphPoint(node, mode);
+    if (!point) return [];
+    positions.set(node.atom_index, point);
+    return {
+      group: "nodes",
+      data: {
+        id: `atom-${node.atom_index}`,
+        label: String(node.atom_index),
+        color: graphElementColor(node.element),
+        borderColor: node.element === "*" ? "#7a4b00" : "#1f2933",
+        borderWidth: node.element === "*" ? 3 : 1.5,
+        size: node.element === "*" ? 18 : 14,
+        record: { type: "node", node },
+      },
+      position: { x: point.x * 36, y: point.y * -36 },
+    };
   });
-
-  ctx.lineWidth = 2;
-  graph.edges.forEach((edge) => {
-    const source = positions.get(edge.source);
-    const target = positions.get(edge.target);
-    if (!source || !target) return;
-    ctx.strokeStyle = edge.features?.aromatic ? "#8b5cf6" : "#8aa09a";
-    ctx.beginPath();
-    ctx.moveTo(source.x, source.y);
-    ctx.lineTo(target.x, target.y);
-    ctx.stroke();
+  const edges = graph.edges.flatMap((edge) => {
+    if (!positions.has(edge.source) || !positions.has(edge.target)) return [];
+    return {
+      group: "edges",
+      data: {
+        id: `bond-${edge.source}-${edge.target}`,
+        source: `atom-${edge.source}`,
+        target: `atom-${edge.target}`,
+        color: edge.features?.aromatic ? "#8b5cf6" : "#8aa09a",
+        width: edge.bond_order > 1 ? 3 : 2,
+        record: { type: "edge", edge },
+      },
+    };
   });
-
-  graph.nodes.forEach((node) => {
-    const position = positions.get(node.atom_index);
-    if (!position) return;
-    ctx.beginPath();
-    ctx.fillStyle = graphElementColor(node.element);
-    ctx.strokeStyle = node.element === "*" ? "#7a4b00" : "#1f2933";
-    ctx.lineWidth = node.element === "*" ? 3 : 1.5;
-    ctx.arc(position.x, position.y, node.element === "*" ? 7 : 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  });
+  return { nodes, edges };
 }
 
 function graphPoint(node, mode) {
@@ -751,6 +857,50 @@ function graphElementColor(element) {
     N: "#60a5fa",
     O: "#f87171",
   }[element] || "#a7b5af";
+}
+
+function selectGraphElement(elementId, detailPanel, mode) {
+  if (!state.graphViewer) return;
+  state.graphViewer.elements().unselect();
+  if (!elementId) {
+    renderGraphSelectionDetail(detailPanel, null, mode);
+    return;
+  }
+  const element = state.graphViewer.$id(elementId);
+  if (!element.length) return;
+  element.select();
+  state.graphViewer.center(element);
+}
+
+function renderGraphSelectionDetail(panel, selection, mode) {
+  clear(panel);
+  if (!selection) {
+    panel.appendChild(field("Selection", "Select an atom or bond to inspect details."));
+    return;
+  }
+  if (selection.type === "node") {
+    const node = selection.node;
+    const coordinates = mode === "3d" ? node.coordinates_3d : node.coordinates_2d;
+    panel.append(
+      field("Atom", String(node.atom_index)),
+      field("Element", node.element),
+      field("Coordinates", coordinates ? coordinates.join(", ") : "unavailable"),
+      field("Features", formatFeatureMap(node.features)),
+    );
+    return;
+  }
+  const edge = selection.edge;
+  panel.append(
+    field("Bond", `${edge.source} -> ${edge.target}`),
+    field("Order", String(edge.bond_order)),
+    field("Features", formatFeatureMap(edge.features)),
+  );
+}
+
+function formatFeatureMap(features) {
+  const entries = Object.entries(features || {});
+  if (!entries.length) return "none";
+  return entries.map(([key, value]) => `${key}: ${value}`).join(", ");
 }
 
 function renderConformerPanel(detail) {

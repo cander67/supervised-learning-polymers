@@ -405,15 +405,50 @@ h3 {
   margin-bottom: 12px;
 }
 
-.graph-canvas {
-  display: block;
+.graph-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.graph-inspection-select {
+  min-width: 92px;
+  max-width: 132px;
+}
+
+.graph-reset-button {
+  border: 1px solid #b8c5be;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f2933;
+  cursor: pointer;
+  padding: 7px 10px;
+  font-weight: 700;
+}
+
+.graph-reset-button:focus-visible {
+  outline: 2px solid #2457a6;
+  outline-offset: 3px;
+}
+
+.graph-viewport {
+  position: relative;
   width: 100%;
   max-width: 720px;
   aspect-ratio: 12 / 7;
-  height: auto;
+  min-height: 260px;
+  overflow: hidden;
   border: 1px solid #d4ddd7;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.graph-detail-panel {
+  margin-top: 12px;
+  border-top: 1px solid #edf1ee;
+  padding-top: 4px;
 }
 
 .table-wrap {

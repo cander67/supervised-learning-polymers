@@ -21,6 +21,17 @@ THREEDMOL_PATH = (
     / "3Dmol-min.js"
 )
 THREEDMOL_SHA256 = "f7cc78921ae72e7623e89cdd111434f58c2efddd2ffda1cd212644b406fb8016"
+CYTOSCAPE_PATH = (
+    Path(__file__).parents[1]
+    / "src"
+    / "supervised_learning_polymers"
+    / "static"
+    / "interface_gui"
+    / "vendor"
+    / "cytoscape"
+    / "cytoscape.min.js"
+)
+CYTOSCAPE_SHA256 = "b85c213252b880cbb2d86c10dc537f673560e82494da4330f1ccc18fbcb5f145"
 
 
 def test_backend_serves_health_check() -> None:
@@ -94,20 +105,32 @@ def test_backend_serves_static_gui_assets() -> None:
     assert 'nativeFetch("/api/artifact")' in app_js
     assert 'nativeFetch("/api/structure-failures")' in app_js
     assert 'src="/vendor/3dmol/3Dmol-min.js"' in index
+    assert 'src="/vendor/cytoscape/cytoscape.min.js"' in index
     assert index.index("window.__nativeFetch = window.fetch;") < index.index(
         'src="/vendor/3dmol/3Dmol-min.js"',
     )
     assert index.index('src="/vendor/3dmol/3Dmol-min.js"') < index.index('src="/app.js"')
+    assert index.index('src="/vendor/cytoscape/cytoscape.min.js"') < index.index('src="/app.js"')
     assert "loadStructures" in app_js
     assert "selectStructure" in app_js
     assert "renderDepictionPanel" in app_js
     assert "renderConformerPanel" in app_js
     assert "renderGraphPanel" in app_js
-    assert "drawGraph" in app_js
+    assert "graphElements" in app_js
+    assert "renderGraphSelectionDetail" in app_js
+    assert "selectGraphElement" in app_js
+    assert "Inspect graph atom" in app_js
+    assert "Inspect graph bond" in app_js
+    assert "Reset view" in app_js
+    assert "wheelSensitivity" in app_js
+    assert "panel.graphViewer = state.graphViewer" in app_js
+    assert "element.graphViewer = null" in app_js
+    assert 'layout: { name: "preset"' in app_js
     assert "renderFailureTriage" in app_js
     assert "openFailureGroup" in app_js
     assert "geometryUnavailableAction" in app_js
     assert 'window["3Dmol"]' in app_js
+    assert "window.cytoscape" in app_js
     assert "smilesVariantField" in app_js
     assert "fallback_provenance" in app_js
     assert "state.structureFilter" in app_js
@@ -125,7 +148,10 @@ def test_backend_serves_static_gui_assets() -> None:
     assert ".depiction-panel" in css
     assert ".conformer-panel" in css
     assert ".graph-panel" in css
-    assert ".graph-canvas" in css
+    assert ".graph-viewport" in css
+    assert ".graph-detail-panel" in css
+    assert ".graph-reset-button" in css
+    assert ".graph-inspection-select" in css
     assert ".molecule-viewer" in css
     assert "position: relative;" in css
     assert "overflow: hidden;" in css
@@ -140,6 +166,16 @@ def test_backend_serves_vendored_3dmol_asset_and_checksum_is_pinned() -> None:
 
     assert "3dmol v2.5.5" in license_notice
     assert "$3Dmol" in asset
+
+
+def test_backend_serves_vendored_cytoscape_asset_and_checksum_is_pinned() -> None:
+    assert sha256(CYTOSCAPE_PATH.read_bytes()).hexdigest() == CYTOSCAPE_SHA256
+    with running_server() as base_url:
+        asset = fetch_text(f"{base_url}/vendor/cytoscape/cytoscape.min.js")
+        license_text = fetch_text(f"{base_url}/vendor/cytoscape/LICENSE")
+
+    assert "cytoscape" in asset.lower()
+    assert "The Cytoscape Consortium" in license_text
 
 
 def test_backend_serves_failure_triage_from_failure_artifact_files() -> None:

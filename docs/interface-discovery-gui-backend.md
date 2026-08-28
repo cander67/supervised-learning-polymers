@@ -125,6 +125,22 @@ The 3D panel uses a vendored 3Dmol.js browser build:
 The checksum is pinned in the backend/static tests so accidental vendored-file changes are visible
 during the default test suite.
 
+The graph panel uses a vendored Cytoscape.js browser build for interactive graph inspection:
+
+- Package: `cytoscape`
+- Version: `3.34.2`
+- Source: `https://unpkg.com/cytoscape@3.34.2/dist/cytoscape.min.js`
+- Vendored path: `src/supervised_learning_polymers/static/interface_gui/vendor/cytoscape/cytoscape.min.js`
+- SHA-256: `b85c213252b880cbb2d86c10dc537f673560e82494da4330f1ccc18fbcb5f145`
+- License file: `vendor/cytoscape/LICENSE`
+
+Cytoscape runs with a preset layout sourced from the graph artifact's 2D coordinates or
+geometry-gated 3D coordinates. Reviewers can pan, zoom, reset the viewport, and select atoms or
+bonds directly or through compact atom/bond selectors to inspect stable identities, active
+coordinates, bond order, and feature dictionaries.
+Production graph generation, graph editing, subgraph extraction, path or neighbor algorithms,
+embeddings, and PRD 09 model-pipeline integration remain deferred to later PRDs.
+
 ## Tradeoffs
 
 - **Maintainability**: The backend is a small artifact adapter built on Python's standard library.

@@ -42,8 +42,9 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 | 9 | Planned | [Search Infrastructure](prds/08-search-infrastructure.md) | Add grid, random, and Bayesian search with trial persistence and resume behavior. | PRD 07 baseline path |
 | 10 | Planned | [2D Graph Representation And GNN Baseline](prds/09-2d-graph-representation-and-gnn-baseline.md) | Build 2D/3D-renderable graph artifacts and one small GNN baseline. | PRDs 06 and 07; extends PRD 13 graph panel |
 | 11 | Planned | [Geometry-Enabled Representation And Model Slice](prds/10-geometry-enabled-representation-and-model-slice.md) | Compare one geometry-aware representation/model against 2D and fixed-vector controls. | PRDs 04, 05, 06, 07, and PRD 13 diagnostics links |
-| 12 | Planned | [Deep Sequence And Transformer Extensions](prds/11-deep-sequence-and-transformer-extensions.md) | Add SMILES CNN and transformer experiments after core contracts and baselines are stable. | PRDs 06, 07, and 08 |
-| 13 | Planned | [Final Scientific Comparison](prds/12-final-scientific-comparison.md) | Produce leaderboards, statistical comparisons, applicability-domain analysis, and model cards. | Earlier model and artifact PRDs |
+| 12 | Planned | [Cytoscape 3D Projection Controls](prds/14-cytoscape-3d-projection-controls.md) | Add optional rotation controls for Cytoscape-backed projected 3D graph inspection. | PRDs 07, 09, 10, and enough real ML diagnostics to shape the interaction |
+| 13 | Planned | [Deep Sequence And Transformer Extensions](prds/11-deep-sequence-and-transformer-extensions.md) | Add SMILES CNN and transformer experiments after core contracts and baselines are stable. | PRDs 06, 07, and 08 |
+| 14 | Planned | [Final Scientific Comparison](prds/12-final-scientific-comparison.md) | Produce leaderboards, statistical comparisons, applicability-domain analysis, and model cards. | Earlier model and artifact PRDs |
 
 ## Review Notes
 
