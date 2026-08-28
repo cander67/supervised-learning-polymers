@@ -34,6 +34,8 @@ Backend endpoints:
   chemistry records.
 - `GET /api/structures/<sample-id>/geometry.sdf`: persisted SDF conformer payload for successful
   geometry records.
+- `GET /api/structures/<sample-id>/graph.json`: selected graph node/edge JSON when graph artifacts
+  are available for the sample.
 - `GET /`, `/app.js`, `/styles.css`: static GUI assets.
 
 ## Chemistry Artifacts
@@ -69,7 +71,7 @@ PRD 13 adds a structure browser inside the same local GUI shell. It consumes che
 - SMILES: raw, canonical, standardized, capped, selected geometry input, and attachment points.
 - 2D: on-demand RDKit SVG from the selected validated SMILES representation.
 - 3D: persisted SDF text from PRD 4 geometry artifacts.
-- Graph: explicit not-yet-generated state until graph artifacts arrive.
+- Graph: project-owned node/edge JSON with optional 2D and 3D coordinates.
 
 Geometry status semantics are visible per selected sample:
 
@@ -91,6 +93,22 @@ The triage pattern guide keeps the PRD 04 full-run failure taxonomy visible: emb
 parse errors, optimization failures, unsupported wildcard atoms, and method-unavailable failures are
 displayed as distinct categories when present. The viewer does not implement retry policy, fallback
 backend execution, chemistry correction workflows, molecule-size bins, or coverage-bias modeling.
+
+Graph records are optional. When available, `run_metadata.artifact_paths.graph_records` points at a
+JSON list keyed by `sample_id`. Each graph record contains:
+
+- `sample_id`, source `smiles`, and `graph_config_id`.
+- `coordinate_modes`, currently `2d` and/or `3d`.
+- `nodes` keyed by stable `atom_index`, with `element`, optional `coordinates_2d`,
+  optional `coordinates_3d`, and feature dictionaries.
+- `edges` keyed by source/target atom indices, with `bond_order` and feature dictionaries.
+- `missing_features` for feature families intentionally absent from a pre-PRD09 graph artifact.
+
+The committed PRD 13 fixture graph uses sample `1125785790` and the selected 35-heavy-atom polymer
+SMILES from the implementation plan. RDKit reports 37 graph nodes because the persisted viewer graph
+keeps the two wildcard attachment atoms as explicit nodes. PRD 09 should preserve stable atom
+indices, node/edge feature dictionaries, and optional 2D/3D coordinate fields so this viewer can
+consume production graph artifacts without changing the panel contract.
 
 The 3D panel uses a vendored 3Dmol.js browser build:
 

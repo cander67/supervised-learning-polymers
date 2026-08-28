@@ -46,10 +46,10 @@ def test_backend_serves_artifact_backed_json_endpoint() -> None:
     assert artifact["run_metadata"]["artifact_paths"]["chemistry_summary"] == (
         "artifacts/chemistry/chemistry-audit-fixture-v1/summary.json"
     )
-    assert artifact["geometry_summary"]["total_chemistry_valid_records"] == 5
+    assert artifact["geometry_summary"]["total_chemistry_valid_records"] == 6
     assert artifact["geometry_summary"]["successful_records"] == 2
     assert artifact["geometry_summary"]["failed_records"] == 2
-    assert artifact["geometry_summary"]["skipped_records"] == 1
+    assert artifact["geometry_summary"]["skipped_records"] == 2
     assert artifact["run_metadata"]["artifact_paths"]["geometry_summary"] == (
         "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json"
     )
@@ -80,6 +80,8 @@ def test_backend_serves_static_gui_assets() -> None:
     assert 'id="structure-smiles-panel"' in index
     assert 'id="structure-2d-panel"' in index
     assert 'id="structure-3d-panel"' in index
+    assert 'id="structure-graph-panel"' in index
+    assert 'id="graph-mode"' in index
     assert 'id="structure-status-panel"' in index
     assert 'id="structure-provenance-panel"' in index
     assert 'id="structure-panel-states"' in index
@@ -100,6 +102,8 @@ def test_backend_serves_static_gui_assets() -> None:
     assert "selectStructure" in app_js
     assert "renderDepictionPanel" in app_js
     assert "renderConformerPanel" in app_js
+    assert "renderGraphPanel" in app_js
+    assert "drawGraph" in app_js
     assert "renderFailureTriage" in app_js
     assert "openFailureGroup" in app_js
     assert "geometryUnavailableAction" in app_js
@@ -120,6 +124,8 @@ def test_backend_serves_static_gui_assets() -> None:
     assert ".selected-row" in css
     assert ".depiction-panel" in css
     assert ".conformer-panel" in css
+    assert ".graph-panel" in css
+    assert ".graph-canvas" in css
     assert ".molecule-viewer" in css
     assert "position: relative;" in css
     assert "overflow: hidden;" in css
@@ -178,8 +184,8 @@ def test_backend_serves_searchable_structure_summaries() -> None:
     with running_server() as base_url:
         payload = loads(fetch_text(f"{base_url}/api/structures"))
 
-    assert payload["total_records"] == 8
-    assert payload["returned_records"] == 8
+    assert payload["total_records"] == 9
+    assert payload["returned_records"] == 9
     assert {record["geometry_status"] for record in payload["records"]} == {
         "success",
         "failed",
@@ -192,6 +198,7 @@ def test_backend_serves_searchable_structure_summaries() -> None:
         "geometry_status": "success",
         "display_smiles": "CCO",
         "has_3d_payload": True,
+        "has_graph_payload": False,
     }
 
 
@@ -219,6 +226,7 @@ def test_structure_status_filter_returns_fixture_backed_browser_states() -> None
     assert [record["sample_id"] for record in not_generated["records"]] == [
         "poly-0003",
         "poly-0005",
+        "1125785790",
     ]
     assert [record["sample_id"] for record in chemistry_failed["records"]] == [
         "poly-0004",
@@ -250,6 +258,7 @@ def test_backend_serves_successful_structure_detail() -> None:
         "payload_ref": "/api/structures/poly-0001/depiction.svg",
         "failure": None,
     }
+    assert detail["graph"]["status"] == "not_generated"
 
 
 def test_backend_serves_failed_structure_detail_with_failure_provenance() -> None:
@@ -330,6 +339,46 @@ def test_backend_serves_not_generated_and_chemistry_failed_structure_states() ->
     assert chemistry_failed["depiction"]["status"] == "upstream_failed"
     assert chemistry_failed["depiction"]["failure"]["recommended_action"] == (
         "Inspect the chemistry failure before reviewing 2D structure."
+    )
+    assert chemistry_failed["graph"]["status"] == "not_generated"
+
+
+def test_backend_serves_graph_preview_payload_for_fixture_sample() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/1125785790"))
+        graph = loads(fetch_text(f"{base_url}/api/structures/1125785790/graph.json"))
+
+    assert detail["sample_id"] == "1125785790"
+    assert detail["geometry"]["status"] == "not_generated"
+    assert detail["graph"]["status"] == "available"
+    assert detail["graph"]["payload_ref"] == "/api/structures/1125785790/graph.json"
+    assert detail["graph"]["graph_config_id"] == "graph-fixture-v1"
+    assert detail["graph"]["coordinate_modes"] == ["2d", "3d"]
+    assert detail["graph"]["missing_features"] == ["partial_charge", "chirality_class"]
+    assert len(detail["graph"]["nodes"]) == 37
+    assert len(detail["graph"]["edges"]) == 38
+    assert detail["graph"]["nodes"][0]["element"] == "*"
+    assert detail["graph"]["nodes"][0]["features"]["atomic_number"] == 0
+    assert detail["graph"]["nodes"][2]["coordinates_2d"] == [-5.165, -4.814]
+    assert detail["graph"]["nodes"][2]["coordinates_3d"] == [-6.13, 3.729, 1.809]
+    assert graph == detail["graph"]
+
+
+def test_graph_state_distinguishes_missing_artifact_from_not_generated(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    fixture["run_metadata"]["artifact_paths"]["graph_records"] = (
+        "artifacts/graphs/missing-fixture/records.json"
+    )
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        missing = loads(fetch_text(f"{base_url}/api/structures/1125785790"))
+
+    assert missing["graph"]["status"] == "artifact_missing"
+    assert (
+        missing["graph"]["message"]
+        == "The configured graph records artifact could not be resolved."
     )
 
 

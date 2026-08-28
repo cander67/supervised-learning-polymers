@@ -28,6 +28,8 @@ GeometryViewerStatus = Literal[
     "artifact_missing",
     "chemistry_failed",
 ]
+GraphViewerStatus = Literal["available", "not_generated", "artifact_missing"]
+GraphCoordinateMode = Literal["2d", "3d"]
 StructureStatusFilter = Literal[
     "all",
     "geometry_success",
@@ -119,6 +121,51 @@ class StructureDepictionPayload(ContractModel):
     failure: StructureDepictionFailurePayload | None = None
 
 
+class StructureGraphNode(ContractModel):
+    """One viewer-ready graph node keyed by stable atom index."""
+
+    atom_index: int = Field(ge=0)
+    element: str = Field(min_length=1)
+    coordinates_2d: tuple[float, float] | None = None
+    coordinates_3d: tuple[float, float, float] | None = None
+    features: dict[str, object] = Field(default_factory=dict)
+
+
+class StructureGraphEdge(ContractModel):
+    """One viewer-ready graph edge keyed by atom indices."""
+
+    source: int = Field(ge=0)
+    target: int = Field(ge=0)
+    bond_order: float = Field(gt=0)
+    features: dict[str, object] = Field(default_factory=dict)
+
+
+class StructureGraphRecord(ContractModel):
+    """Project-owned graph artifact shape reserved for PRD 09 compatibility."""
+
+    sample_id: str = Field(min_length=1)
+    smiles: str = Field(min_length=1)
+    graph_config_id: str = Field(min_length=1)
+    coordinate_modes: tuple[GraphCoordinateMode, ...] = Field(min_length=1)
+    missing_features: tuple[str, ...] = Field(default_factory=tuple)
+    nodes: tuple[StructureGraphNode, ...] = Field(min_length=1)
+    edges: tuple[StructureGraphEdge, ...] = Field(default_factory=tuple)
+
+
+class StructureGraphPayload(ContractModel):
+    """Graph panel state for a selected structure."""
+
+    status: GraphViewerStatus
+    graph_config_id: str | None = Field(default=None, min_length=1)
+    artifact_path: str | None = Field(default=None, min_length=1)
+    payload_ref: str | None = Field(default=None, min_length=1)
+    coordinate_modes: tuple[GraphCoordinateMode, ...] = Field(default_factory=tuple)
+    missing_features: tuple[str, ...] = Field(default_factory=tuple)
+    nodes: tuple[StructureGraphNode, ...] = Field(default_factory=tuple)
+    edges: tuple[StructureGraphEdge, ...] = Field(default_factory=tuple)
+    message: str | None = Field(default=None, min_length=1)
+
+
 class StructureRecordSummary(ContractModel):
     """Search-result row for a structure record."""
 
@@ -127,6 +174,7 @@ class StructureRecordSummary(ContractModel):
     geometry_status: GeometryViewerStatus
     display_smiles: str | None = None
     has_3d_payload: bool = False
+    has_graph_payload: bool = False
 
 
 class StructureRecordDetail(ContractModel):
@@ -138,6 +186,7 @@ class StructureRecordDetail(ContractModel):
     provenance: StructureProvenance
     geometry: StructureGeometryPayload
     depiction: StructureDepictionPayload
+    graph: StructureGraphPayload
     chemistry_failure: ChemistryFailureRecord | None = None
 
 
@@ -201,6 +250,7 @@ class StructureArtifactBundle:
         self.artifact_path = Path(artifact_path)
         self._chemistry_records = _load_chemistry_records(artifact, self.artifact_path)
         self._geometry_records = _load_geometry_records(artifact, self.artifact_path)
+        self._graph_records = _load_graph_records(artifact, self.artifact_path)
         self._chemistry_failures = _load_chemistry_failures(
             artifact,
             self.artifact_path,
@@ -280,6 +330,12 @@ class StructureArtifactBundle:
             return None
         return detail.geometry.sdf_text
 
+    def graph_payload(self, sample_id: str) -> StructureGraphPayload | None:
+        detail = self.structure_detail(sample_id)
+        if detail is None or detail.graph.status != "available":
+            return None
+        return detail.graph
+
     def depiction_svg(self, sample_id: str) -> str | None:
         detail = self.structure_detail(sample_id)
         if detail is None or detail.depiction.status != "available":
@@ -311,6 +367,11 @@ class StructureArtifactBundle:
             ),
             geometry=_geometry_payload(chemistry_record, geometry_record, self._geometry_records),
             depiction=_depiction_payload(chemistry_record),
+            graph=_graph_payload(
+                chemistry_record,
+                self._graph_records,
+                self.artifact.run_metadata.artifact_paths.get("graph_records"),
+            ),
             chemistry_failure=chemistry_failure,
         )
 
@@ -341,6 +402,23 @@ def _load_geometry_records(
     return {
         record.sample_id: record
         for record in (GeometryAttemptRecord.model_validate(record) for record in payload)
+    }
+
+
+def _load_graph_records(
+    artifact: InterfaceDiscoveryArtifact,
+    artifact_path: Path,
+) -> dict[str, StructureGraphRecord] | None:
+    path = _resolve_artifact_path(
+        artifact.run_metadata.artifact_paths.get("graph_records"),
+        artifact_path,
+    )
+    if path is None:
+        return None
+    payload = loads(path.read_text())
+    return {
+        record.sample_id: record
+        for record in (StructureGraphRecord.model_validate(record) for record in payload)
     }
 
 
@@ -393,9 +471,9 @@ def _resolve_artifact_path(value: str | None, artifact_path: Path) -> Path | Non
         (path,)
         if path.is_absolute()
         else (
+            _fixture_artifact_path(path),
             artifact_path.parent / path,
             Path.cwd() / path,
-            _fixture_artifact_path(path),
         )
     )
     return next((candidate for candidate in candidates if candidate.exists()), None)
@@ -559,6 +637,43 @@ def _geometry_payload(
     )
 
 
+def _graph_payload(
+    chemistry_record: ChemistryAuditRecord,
+    graph_records: dict[str, StructureGraphRecord] | None,
+    graph_records_path: str | None,
+) -> StructureGraphPayload:
+    if graph_records is None:
+        if graph_records_path is None:
+            return StructureGraphPayload(
+                status="not_generated",
+                message="No graph records artifact is configured for this run.",
+            )
+        return StructureGraphPayload(
+            status="artifact_missing",
+            artifact_path=graph_records_path,
+            message="The configured graph records artifact could not be resolved.",
+        )
+
+    graph_record = graph_records.get(chemistry_record.sample_id)
+    if graph_record is None:
+        return StructureGraphPayload(
+            status="not_generated",
+            artifact_path=graph_records_path,
+            message="No graph record is available for this sample.",
+        )
+
+    return StructureGraphPayload(
+        status="available",
+        graph_config_id=graph_record.graph_config_id,
+        artifact_path=graph_records_path,
+        payload_ref=f"/api/structures/{chemistry_record.sample_id}/graph.json",
+        coordinate_modes=graph_record.coordinate_modes,
+        missing_features=graph_record.missing_features,
+        nodes=graph_record.nodes,
+        edges=graph_record.edges,
+    )
+
+
 def _summary_from_detail(detail: StructureRecordDetail) -> StructureRecordSummary:
     smiles = (
         detail.smiles.selected_geometry_input or detail.smiles.capped or detail.smiles.standardized
@@ -571,6 +686,7 @@ def _summary_from_detail(detail: StructureRecordDetail) -> StructureRecordSummar
         geometry_status=detail.geometry.status,
         display_smiles=smiles,
         has_3d_payload=detail.geometry.sdf_text is not None,
+        has_graph_payload=detail.graph.status == "available",
     )
 
 

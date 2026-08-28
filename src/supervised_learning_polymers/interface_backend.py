@@ -83,6 +83,15 @@ class InterfaceDiscoveryRequestHandler(BaseHTTPRequestHandler):
                 self.send_error(HTTPStatus.NOT_FOUND, "Structure geometry not found")
             else:
                 self._send_text(sdf_text, "chemical/x-mdl-sdfile")
+        elif route.startswith("/api/structures/") and route.endswith("/graph.json"):
+            sample_id = unquote(
+                route.removeprefix("/api/structures/").removesuffix("/graph.json")
+            ).strip("/")
+            graph_payload = self._structure_bundle().graph_payload(sample_id)
+            if graph_payload is None:
+                self.send_error(HTTPStatus.NOT_FOUND, "Structure graph not found")
+            else:
+                self._send_json(graph_payload.model_dump(mode="json"))
         elif route.startswith("/api/structures/"):
             sample_id = unquote(route.removeprefix("/api/structures/")).strip("/")
             detail = self._structure_bundle().structure_detail(sample_id)

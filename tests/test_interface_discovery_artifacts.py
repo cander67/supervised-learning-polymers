@@ -42,7 +42,7 @@ def test_interface_discovery_fixture_includes_chemistry_run_and_result_summaries
 
     chemistry = artifact.chemistry_failure_summary
     assert isinstance(chemistry, ChemistryAuditSummary)
-    assert chemistry.total_records == 8
+    assert chemistry.total_records == 9
     assert chemistry.failed_records == 3
     assert {group.failure_type for group in chemistry.failure_groups} == {
         "capping_error",
@@ -61,17 +61,20 @@ def test_interface_discovery_fixture_includes_geometry_summary_for_viewer_workbe
 
     geometry = artifact.geometry_summary
     assert isinstance(geometry, GeometrySummary)
-    assert geometry.total_chemistry_valid_records == 5
+    assert geometry.total_chemistry_valid_records == 6
     assert geometry.attempted_records == 4
     assert geometry.successful_records == 2
     assert geometry.failed_records == 2
-    assert geometry.skipped_records == 1
-    assert geometry.coverage_fraction == 0.4
+    assert geometry.skipped_records == 2
+    assert geometry.coverage_fraction == 0.3333333333333333
     assert {group.failure_type: group.count for group in geometry.failure_groups} == {
         "embedding_failed": 2
     }
     assert artifact.run_metadata.artifact_paths["geometry_summary"] == (
         "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json"
+    )
+    assert artifact.run_metadata.artifact_paths["graph_records"] == (
+        "artifacts/graphs/graph-fixture-v1/records.json"
     )
 
 

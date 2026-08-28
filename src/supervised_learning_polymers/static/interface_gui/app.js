@@ -10,6 +10,7 @@ const state = {
   selectedFailureDomain: null,
   selectedFailureType: null,
   selectedFailureSampleId: null,
+  graphMode: "2d",
 };
 
 const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);
@@ -551,11 +552,13 @@ function renderStructureDetail(detail) {
   ]);
   renderDepictionPanel(detail);
   renderConformerPanel(detail);
+  renderGraphPanel(detail);
 
   const statusRows = [
     field("Chemistry", detail.chemistry_status),
     field("Geometry", statusLabel(detail.geometry.status)),
     field("2D", statusLabel(detail.depiction.status)),
+    field("Graph", statusLabel(detail.graph.status)),
   ];
   if (detail.geometry.method) {
     statusRows.push(
@@ -605,10 +608,144 @@ function renderStructureDetail(detail) {
       "3D",
       detail.geometry.status === "success" ? "SDF payload available" : statusLabel(detail.geometry.status),
     ),
-    field("Graph", "not yet generated"),
+    field(
+      "Graph",
+      detail.graph.status === "available"
+        ? `${detail.graph.nodes.length} nodes / ${detail.graph.edges.length} edges`
+        : statusLabel(detail.graph.status),
+    ),
   ]);
 
   renderStructureRows(state.structureRows);
+}
+
+function renderGraphPanel(detail) {
+  const panel = document.getElementById("structure-graph-panel");
+  const modeSelect = document.getElementById("graph-mode");
+  clear(panel);
+  syncGraphModeControl(detail.graph, modeSelect);
+
+  if (detail.graph.status !== "available") {
+    panel.appendChild(field("Status", statusLabel(detail.graph.status)));
+    panel.appendChild(field("Message", detail.graph.message || "No graph artifact is available."));
+    return;
+  }
+
+  const mode = detail.graph.coordinate_modes.includes(state.graphMode)
+    ? state.graphMode
+    : detail.graph.coordinate_modes[0];
+  state.graphMode = mode;
+  modeSelect.value = mode;
+
+  const summary = document.createElement("div");
+  summary.className = "graph-summary";
+  summary.append(
+    field("Config", detail.graph.graph_config_id || "n/a"),
+    field("Nodes", detail.graph.nodes.length.toLocaleString()),
+    field("Edges", detail.graph.edges.length.toLocaleString()),
+    field("Mode", mode.toUpperCase()),
+    field("Missing features", detail.graph.missing_features.join(", ") || "none"),
+  );
+  panel.appendChild(summary);
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "graph-canvas";
+  canvas.width = 720;
+  canvas.height = 420;
+  canvas.setAttribute("aria-label", `${mode.toUpperCase()} graph for ${detail.sample_id}`);
+  panel.appendChild(canvas);
+  drawGraph(canvas, detail.graph, mode);
+}
+
+function syncGraphModeControl(graph, modeSelect) {
+  const modes = graph.coordinate_modes?.length ? graph.coordinate_modes : ["2d", "3d"];
+  [...modeSelect.options].forEach((option) => {
+    option.disabled = !modes.includes(option.value);
+  });
+  modeSelect.disabled = graph.status !== "available";
+}
+
+function drawGraph(canvas, graph, mode) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const coordinates = graph.nodes.map((node) => ({
+    node,
+    point: graphPoint(node, mode),
+  }));
+  const drawable = coordinates.filter((entry) => entry.point);
+  if (!drawable.length) {
+    ctx.fillStyle = "#7a4b00";
+    ctx.fillText("No coordinates available for selected graph mode.", 18, 28);
+    return;
+  }
+
+  const bounds = drawable.reduce(
+    (acc, entry) => ({
+      minX: Math.min(acc.minX, entry.point.x),
+      maxX: Math.max(acc.maxX, entry.point.x),
+      minY: Math.min(acc.minY, entry.point.y),
+      maxY: Math.max(acc.maxY, entry.point.y),
+    }),
+    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
+  );
+  const padding = 32;
+  const spanX = Math.max(bounds.maxX - bounds.minX, 1);
+  const spanY = Math.max(bounds.maxY - bounds.minY, 1);
+  const scale = Math.min(
+    (canvas.width - padding * 2) / spanX,
+    (canvas.height - padding * 2) / spanY,
+  );
+  const positions = new Map();
+  drawable.forEach((entry) => {
+    positions.set(entry.node.atom_index, {
+      x: padding + (entry.point.x - bounds.minX) * scale,
+      y: canvas.height - padding - (entry.point.y - bounds.minY) * scale,
+    });
+  });
+
+  ctx.lineWidth = 2;
+  graph.edges.forEach((edge) => {
+    const source = positions.get(edge.source);
+    const target = positions.get(edge.target);
+    if (!source || !target) return;
+    ctx.strokeStyle = edge.features?.aromatic ? "#8b5cf6" : "#8aa09a";
+    ctx.beginPath();
+    ctx.moveTo(source.x, source.y);
+    ctx.lineTo(target.x, target.y);
+    ctx.stroke();
+  });
+
+  graph.nodes.forEach((node) => {
+    const position = positions.get(node.atom_index);
+    if (!position) return;
+    ctx.beginPath();
+    ctx.fillStyle = graphElementColor(node.element);
+    ctx.strokeStyle = node.element === "*" ? "#7a4b00" : "#1f2933";
+    ctx.lineWidth = node.element === "*" ? 3 : 1.5;
+    ctx.arc(position.x, position.y, node.element === "*" ? 7 : 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  });
+}
+
+function graphPoint(node, mode) {
+  if (mode === "3d" && node.coordinates_3d) {
+    return { x: node.coordinates_3d[0], y: node.coordinates_3d[1] + node.coordinates_3d[2] * 0.28 };
+  }
+  if (node.coordinates_2d) return { x: node.coordinates_2d[0], y: node.coordinates_2d[1] };
+  return null;
+}
+
+function graphElementColor(element) {
+  return {
+    "*": "#ffe08a",
+    C: "#4b5563",
+    N: "#60a5fa",
+    O: "#f87171",
+  }[element] || "#a7b5af";
 }
 
 function renderConformerPanel(detail) {
@@ -705,6 +842,7 @@ function renderEmptyStructureDetail() {
   renderList("structure-smiles-panel", [field("Status", "No selected structure")]);
   renderList("structure-2d-panel", [field("Status", "No selected structure")]);
   renderList("structure-3d-panel", [field("Status", "No selected structure")]);
+  renderList("structure-graph-panel", [field("Status", "No selected structure")]);
   renderList("structure-status-panel", [field("Status", "No selected structure")]);
   renderList("structure-provenance-panel", [
     field("Chemistry records", state.artifact?.run_metadata.artifact_paths.chemistry_records || "n/a"),
@@ -738,6 +876,11 @@ document.getElementById("structure-search").addEventListener("input", (event) =>
 document.getElementById("structure-filter").addEventListener("change", (event) => {
   state.structureFilter = event.target.value;
   loadStructures();
+});
+
+document.getElementById("graph-mode").addEventListener("change", (event) => {
+  state.graphMode = event.target.value;
+  if (state.selectedStructureId) selectStructure(state.selectedStructureId);
 });
 
 nativeFetch("/api/artifact")

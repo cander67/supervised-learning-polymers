@@ -111,8 +111,8 @@
     ]
   },
   "chemistry_failure_summary": {
-    "total_records": 8,
-    "valid_records": 5,
+    "total_records": 9,
+    "valid_records": 6,
     "failed_records": 3,
     "failure_groups": [
       {
@@ -142,13 +142,13 @@
     ]
   },
   "geometry_summary": {
-    "total_chemistry_valid_records": 5,
+    "total_chemistry_valid_records": 6,
     "attempted_records": 4,
     "successful_records": 2,
     "failed_records": 2,
-    "skipped_records": 1,
+    "skipped_records": 2,
     "skipped_fallback_records": 2,
-    "coverage_fraction": 0.4,
+    "coverage_fraction": 0.3333333333333333,
     "total_runtime_seconds": 0.318,
     "failure_groups": [
       {
@@ -178,8 +178,8 @@
       {
         "name": "Chemistry audit",
         "status": "completed",
-        "completed_units": 8,
-        "total_units": 8
+        "completed_units": 9,
+        "total_units": 9
       },
       {
         "name": "Fit target chain",
@@ -197,6 +197,7 @@
       "geometry_metadata": "artifacts/geometry/geometry-rdkit-fixture-v1/metadata.json",
       "geometry_records": "artifacts/geometry/geometry-rdkit-fixture-v1/records.json",
       "geometry_summary": "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json",
+      "graph_records": "artifacts/graphs/graph-fixture-v1/records.json",
       "manifest": "artifacts/interface-discovery/run-interface-discovery-fixture-001/manifest.json",
       "metrics": "artifacts/interface-discovery/run-interface-discovery-fixture-001/metrics.json"
     }

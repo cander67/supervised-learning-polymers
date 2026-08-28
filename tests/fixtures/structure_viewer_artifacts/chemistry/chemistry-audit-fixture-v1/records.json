@@ -102,5 +102,18 @@
       "message": "RDKit capping failed: fixture error.",
       "stage": "capping"
     }
+  },
+  {
+    "sample_id": "1125785790",
+    "raw_smiles": "*Oc1ccc(CC(NC(=O)CCc2ccc(OC(=O)CCCCCCC(*)=O)cc2)C(=O)OC)cc1",
+    "status": "valid",
+    "canonical_smiles": "*Oc1ccc(CC(NC(=O)CCc2ccc(OC(=O)CCCCCCC(*)=O)cc2)C(=O)OC)cc1",
+    "standardized_smiles": "*Oc1ccc(CC(NC(=O)CCc2ccc(OC(=O)CCCCCCC(*)=O)cc2)C(=O)OC)cc1",
+    "capped_smiles": "*Oc1ccc(CC(NC(=O)CCc2ccc(OC(=O)CCCCCCC(*)=O)cc2)C(=O)OC)cc1",
+    "attachment_points": [
+      "*:0",
+      "*:27"
+    ],
+    "failure": null
   }
 ]
