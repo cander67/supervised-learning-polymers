@@ -82,3 +82,25 @@ This PRD depends on viewer-ready artifacts from PRD 04 for its first practical i
 should stay compatible with graph artifacts from PRD 09 and geometry-linked model diagnostics from
 PRD 10. It should be implemented incrementally: first as a read-only chemistry/geometry artifact
 browser, then as a full structure and graph validation workbench once graph artifacts exist.
+
+## Implementation Review Notes
+
+Status: ready for PRD-level review. The local GUI/backend now exposes searchable structure records,
+coordinated SMILES, RDKit 2D, 3Dmol conformer/failure, Cytoscape graph-inspection, failure triage,
+optional downstream-reference panels, and direct launch from persisted local chemistry and geometry
+artifact bundles.
+
+The implementation keeps current interface summary path keys and discovers detailed chemistry and
+geometry bundle siblings from those paths. Optional graph and downstream links are direct artifact
+paths, and missing optional records are displayed as unavailable rather than as errors.
+
+Deferred geometry-groundwork follow-ups remain out of scope: capping rerun comparison, ETKDG retry
+policy, fallback method execution or selection, chemistry correction workflows, molecule-size bins,
+and coverage-bias analysis. Those should be handled by later model or geometry-hardening PRDs after
+more real ML diagnostics exist.
+
+Phase 9 added a real-local-artifact launcher so reviewers can start the same GUI directly from
+existing chemistry and geometry artifact bundles without manually creating an interface wrapper
+JSON. The current local artifact smoke path uses `artifacts/chemistry/chemistry-audit-v1` and
+`artifacts/geometry/geometry-rdkit-v1`, which contain 7,973 chemistry-valid records, 7,180 geometry
+successes, 793 geometry failures, and 90.05% geometry coverage.

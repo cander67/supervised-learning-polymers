@@ -1,0 +1,18 @@
+[
+  {
+    "sample_id": "poly-0006",
+    "method_name": "rdkit_etkdg_mmff",
+    "failure_type": "embedding_failed",
+    "message": "RDKit ETKDG embedding failed with status -1.",
+    "stage": "embedding",
+    "recommended_action": "Try a capped input representation or inspect the molecule."
+  },
+  {
+    "sample_id": "poly-0009",
+    "method_name": "rdkit_etkdg_mmff",
+    "failure_type": "embedding_failed",
+    "message": "RDKit ETKDG embedding failed with status -1.",
+    "stage": "embedding",
+    "recommended_action": "Try a capped input representation or inspect the molecule."
+  }
+]

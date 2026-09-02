@@ -1,14 +1,52 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
-from json import loads
+from hashlib import sha256
+from json import dumps, loads
 from pathlib import Path
 from threading import Thread
+from tomllib import loads as load_toml
 from typing import cast
 from urllib.request import urlopen
 
-from supervised_learning_polymers.interface_backend import create_interface_discovery_server
+import pytest
+
+from supervised_learning_polymers.chemistry import (
+    CappingConfig,
+    ChemistryAuditConfig,
+    audit_dataset_rows,
+    write_chemistry_audit_artifacts,
+)
+from supervised_learning_polymers.geometry_cli import main as geometry_main
+from supervised_learning_polymers.interface_backend import (
+    build_structure_viewer_artifact,
+    create_interface_discovery_server,
+    create_structure_viewer_server,
+)
+from supervised_learning_polymers.manifest import DatasetConfig
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "interface_discovery_run.json"
+THREEDMOL_PATH = (
+    Path(__file__).parents[1]
+    / "src"
+    / "supervised_learning_polymers"
+    / "static"
+    / "interface_gui"
+    / "vendor"
+    / "3dmol"
+    / "3Dmol-min.js"
+)
+THREEDMOL_SHA256 = "f7cc78921ae72e7623e89cdd111434f58c2efddd2ffda1cd212644b406fb8016"
+CYTOSCAPE_PATH = (
+    Path(__file__).parents[1]
+    / "src"
+    / "supervised_learning_polymers"
+    / "static"
+    / "interface_gui"
+    / "vendor"
+    / "cytoscape"
+    / "cytoscape.min.js"
+)
+CYTOSCAPE_SHA256 = "b85c213252b880cbb2d86c10dc537f673560e82494da4330f1ccc18fbcb5f145"
 
 
 def test_backend_serves_health_check() -> None:
@@ -34,9 +72,10 @@ def test_backend_serves_artifact_backed_json_endpoint() -> None:
     assert artifact["run_metadata"]["artifact_paths"]["chemistry_summary"] == (
         "artifacts/chemistry/chemistry-audit-fixture-v1/summary.json"
     )
-    assert artifact["geometry_summary"]["total_chemistry_valid_records"] == 5
+    assert artifact["geometry_summary"]["total_chemistry_valid_records"] == 6
     assert artifact["geometry_summary"]["successful_records"] == 3
     assert artifact["geometry_summary"]["failed_records"] == 2
+    assert artifact["geometry_summary"]["skipped_records"] == 1
     assert artifact["run_metadata"]["artifact_paths"]["geometry_summary"] == (
         "artifacts/geometry/geometry-rdkit-fixture-v1/summary.json"
     )
@@ -60,11 +99,647 @@ def test_backend_serves_static_gui_assets() -> None:
     assert '<div id="target-mode"></div>' in index
     assert 'id="geometry-summary"' in index
     assert 'id="metric-filter"' in index
-    assert 'fetch("/api/artifact")' in app_js
+    assert 'id="structure-browser"' in index
+    assert 'id="structure-search"' in index
+    assert 'id="structure-filter"' in index
+    assert 'id="structure-rows"' in index
+    assert 'id="structure-smiles-panel"' in index
+    assert 'id="structure-2d-panel"' in index
+    assert 'id="structure-3d-panel"' in index
+    assert 'id="structure-graph-panel"' in index
+    assert 'id="structure-downstream-panel"' in index
+    assert 'id="graph-mode"' in index
+    assert 'id="structure-status-panel"' in index
+    assert 'id="structure-provenance-panel"' in index
+    assert 'id="structure-panel-states"' in index
+    assert 'id="triage-group-rows"' in index
+    assert 'id="triage-example-rows"' in index
+    assert 'id="triage-detail-panel"' in index
+    assert 'id="triage-pattern-guide"' in index
+    assert "window.__nativeFetch = window.fetch;" in index
+    assert "const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);" in app_js
+    assert 'nativeFetch("/api/artifact")' in app_js
+    assert 'nativeFetch("/api/structure-failures")' in app_js
+    assert 'src="/vendor/3dmol/3Dmol-min.js"' in index
+    assert 'src="/vendor/cytoscape/cytoscape.min.js"' in index
+    assert index.index("window.__nativeFetch = window.fetch;") < index.index(
+        'src="/vendor/3dmol/3Dmol-min.js"',
+    )
+    assert index.index('src="/vendor/3dmol/3Dmol-min.js"') < index.index('src="/app.js"')
+    assert index.index('src="/vendor/cytoscape/cytoscape.min.js"') < index.index('src="/app.js"')
+    assert "loadStructures" in app_js
+    assert "selectStructure" in app_js
+    assert "renderDepictionPanel" in app_js
+    assert "renderConformerPanel" in app_js
+    assert "renderGraphPanel" in app_js
+    assert "renderDownstreamPanel" in app_js
+    assert "downstream.references" in app_js
+    assert "graphElements" in app_js
+    assert "renderGraphSelectionDetail" in app_js
+    assert "selectGraphElement" in app_js
+    assert "Inspect graph atom" in app_js
+    assert "Inspect graph bond" in app_js
+    assert "Reset view" in app_js
+    assert "wheelSensitivity" in app_js
+    assert "panel.graphViewer = state.graphViewer" in app_js
+    assert "element.graphViewer = null" in app_js
+    assert 'layout: { name: "preset"' in app_js
+    assert "renderFailureTriage" in app_js
+    assert "openFailureGroup" in app_js
+    assert "geometryUnavailableAction" in app_js
+    assert 'window["3Dmol"]' in app_js
+    assert "window.cytoscape" in app_js
+    assert "smilesVariantField" in app_js
+    assert "fallback_provenance" in app_js
+    assert "state.structureFilter" in app_js
+    assert "state.structureQuery" in app_js
+    assert "No structures match the current search and status filter" in app_js
     assert "renderGeometrySummary" in app_js
     assert "renderMetricRows" in app_js
     assert "run-interface-discovery-fixture-001" not in app_js
     assert ".summary-grid" in css
+    assert ".structure-grid" in css
+    assert ".triage-workbench" in css
+    assert ".triage-grid" in css
+    assert ".pattern-guide" in css
+    assert ".selected-row" in css
+    assert ".depiction-panel" in css
+    assert ".conformer-panel" in css
+    assert ".graph-panel" in css
+    assert ".graph-viewport" in css
+    assert ".graph-detail-panel" in css
+    assert ".graph-reset-button" in css
+    assert ".graph-inspection-select" in css
+    assert ".downstream-reference" in css
+    assert ".molecule-viewer" in css
+    assert "position: relative;" in css
+    assert "overflow: hidden;" in css
+    assert ".badge-selected" in css
+
+
+def test_project_script_exposes_direct_structure_viewer_command() -> None:
+    pyproject = load_toml(Path("pyproject.toml").read_text())
+
+    assert (
+        pyproject["project"]["scripts"]["slp-structure-viewer"]
+        == "supervised_learning_polymers.interface_backend:main"
+    )
+
+
+def test_direct_structure_viewer_artifact_uses_real_bundle_layout(tmp_path: Path) -> None:
+    chemistry_root = write_real_layout_chemistry_artifacts(tmp_path)
+    geometry_root = write_real_layout_geometry_artifacts(tmp_path, chemistry_root)
+
+    artifact = build_structure_viewer_artifact(
+        chemistry_root,
+        geometry_root,
+        display_name="Real artifact review fixture",
+    )
+
+    assert artifact.run_metadata.display_name == "Real artifact review fixture"
+    assert artifact.manifest.dataset.dataset_version == "open-polymer-train-fixture-v1"
+    assert artifact.manifest.chemistry.config_id == "chemistry-real-layout-v1"
+    assert artifact.manifest.model.config_id == "structure-viewer-only"
+    assert artifact.chemistry_failure_summary.total_records == 2
+    assert artifact.chemistry_failure_summary.valid_records == 1
+    assert artifact.geometry_summary is not None
+    assert artifact.geometry_summary.total_chemistry_valid_records == 1
+    assert artifact.run_metadata.artifact_paths == {
+        "chemistry_failures": str(chemistry_root / "failures.json"),
+        "chemistry_metadata": str(chemistry_root / "metadata.json"),
+        "chemistry_records": str(chemistry_root / "records.json"),
+        "chemistry_summary": str(chemistry_root / "summary.json"),
+        "geometry_failures": str(geometry_root / "failures.json"),
+        "geometry_metadata": str(geometry_root / "metadata.json"),
+        "geometry_records": str(geometry_root / "records.json"),
+        "geometry_summary": str(geometry_root / "summary.json"),
+    }
+
+
+def test_direct_structure_viewer_accepts_records_json_paths(tmp_path: Path) -> None:
+    chemistry_root = write_real_layout_chemistry_artifacts(tmp_path)
+    geometry_root = write_real_layout_geometry_artifacts(tmp_path, chemistry_root)
+
+    artifact = build_structure_viewer_artifact(
+        chemistry_root / "records.json",
+        geometry_root / "records.json",
+    )
+
+    assert artifact.chemistry_failure_summary.failed_records == 1
+    assert artifact.geometry_summary is not None
+    assert artifact.geometry_summary.successful_records == 1
+
+
+def test_direct_structure_viewer_wires_optional_artifact_paths(tmp_path: Path) -> None:
+    chemistry_root = write_real_layout_chemistry_artifacts(tmp_path)
+    geometry_root = write_real_layout_geometry_artifacts(tmp_path, chemistry_root)
+    graph_records = tmp_path / "graph-records.json"
+    downstream_links = tmp_path / "downstream-links.json"
+    graph_records.write_text("[]\n")
+    downstream_links.write_text("[]\n")
+
+    artifact = build_structure_viewer_artifact(
+        chemistry_root,
+        geometry_root,
+        graph_records=graph_records,
+        downstream_links=downstream_links,
+    )
+
+    assert artifact.run_metadata.artifact_paths["graph_records"] == str(graph_records)
+    assert artifact.run_metadata.artifact_paths["downstream_links"] == str(downstream_links)
+
+
+def test_direct_structure_viewer_reports_missing_bundle_files(tmp_path: Path) -> None:
+    chemistry_root = write_real_layout_chemistry_artifacts(tmp_path)
+    geometry_root = write_real_layout_geometry_artifacts(tmp_path, chemistry_root)
+    (chemistry_root / "metadata.json").unlink()
+
+    with pytest.raises(FileNotFoundError, match="chemistry metadata file not found"):
+        build_structure_viewer_artifact(chemistry_root, geometry_root)
+
+
+def test_direct_structure_viewer_reports_sample_id_mismatch(tmp_path: Path) -> None:
+    chemistry_root = write_real_layout_chemistry_artifacts(tmp_path)
+    geometry_root = write_real_layout_geometry_artifacts(tmp_path, chemistry_root)
+    geometry_records_path = geometry_root / "records.json"
+    geometry_records = loads(geometry_records_path.read_text())
+    geometry_records[0]["sample_id"] = "poly-missing"
+    geometry_records_path.write_text(dumps(geometry_records) + "\n")
+
+    with pytest.raises(ValueError, match="sample IDs not present as valid chemistry records"):
+        build_structure_viewer_artifact(chemistry_root, geometry_root)
+
+
+def test_direct_structure_viewer_server_serves_generated_artifact(tmp_path: Path) -> None:
+    chemistry_root = write_real_layout_chemistry_artifacts(tmp_path)
+    geometry_root = write_real_layout_geometry_artifacts(tmp_path, chemistry_root)
+    server = create_structure_viewer_server(chemistry_root, geometry_root, port=0)
+    host = server.bind_host
+    port = server.server_port
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        detail = loads(fetch_text(f"http://{host}:{port}/api/structures/poly-ethanol"))
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+    assert detail["sample_id"] == "poly-ethanol"
+    assert detail["geometry"]["status"] == "success"
+    assert detail["depiction"]["status"] == "available"
+
+
+def test_backend_serves_vendored_3dmol_asset_and_checksum_is_pinned() -> None:
+    assert sha256(THREEDMOL_PATH.read_bytes()).hexdigest() == THREEDMOL_SHA256
+    with running_server() as base_url:
+        asset = fetch_text(f"{base_url}/vendor/3dmol/3Dmol-min.js")
+        license_notice = fetch_text(f"{base_url}/vendor/3dmol/3Dmol-min.js.LICENSE.txt")
+
+    assert "3dmol v2.5.5" in license_notice
+    assert "$3Dmol" in asset
+
+
+def test_backend_serves_vendored_cytoscape_asset_and_checksum_is_pinned() -> None:
+    assert sha256(CYTOSCAPE_PATH.read_bytes()).hexdigest() == CYTOSCAPE_SHA256
+    with running_server() as base_url:
+        asset = fetch_text(f"{base_url}/vendor/cytoscape/cytoscape.min.js")
+        license_text = fetch_text(f"{base_url}/vendor/cytoscape/LICENSE")
+
+    assert "cytoscape" in asset.lower()
+    assert "The Cytoscape Consortium" in license_text
+
+
+def test_backend_serves_failure_triage_from_failure_artifact_files() -> None:
+    with running_server() as base_url:
+        triage = loads(fetch_text(f"{base_url}/api/structure-failures"))
+
+    assert triage["total_groups"] == 4
+    assert triage["total_examples"] == 5
+    assert triage["pattern_reference"] == [
+        "embedding_failed",
+        "parse_error",
+        "optimization_failed",
+        "unsupported_wildcard_atoms",
+        "method_unavailable",
+    ]
+    assert {
+        (group["domain"], group["failure_type"]): group["structure_filter"]
+        for group in triage["groups"]
+    } == {
+        ("chemistry", "capping_error"): "chemistry_failed",
+        ("chemistry", "parse_error"): "chemistry_failed",
+        ("chemistry", "standardization_error"): "chemistry_failed",
+        ("geometry", "embedding_failed"): "geometry_failure",
+    }
+
+    geometry_examples = {
+        example["sample_id"]: example
+        for example in triage["examples"]
+        if example["domain"] == "geometry"
+    }
+    assert geometry_examples["poly-0006"]["selected_input_representation"] == "capped_smiles"
+    assert geometry_examples["poly-0006"]["selected_input_smiles"] == "[H]C([H])C(C)C"
+    assert geometry_examples["poly-0006"]["runtime_seconds"] == 0.112
+    assert geometry_examples["poly-0006"]["structure_detail_available"] is True
+    assert geometry_examples["poly-0009"]["structure_detail_available"] is False
+    assert (
+        geometry_examples["poly-0009"]["message"] == "RDKit ETKDG embedding failed with status -1."
+    )
+
+
+def test_backend_serves_searchable_structure_summaries() -> None:
+    with running_server() as base_url:
+        payload = loads(fetch_text(f"{base_url}/api/structures"))
+
+    assert payload["total_records"] == 9
+    assert payload["returned_records"] == 9
+    assert {record["geometry_status"] for record in payload["records"]} == {
+        "success",
+        "failed",
+        "not_generated",
+        "chemistry_failed",
+    }
+    assert payload["records"][0] == {
+        "sample_id": "poly-0001",
+        "chemistry_status": "valid",
+        "geometry_status": "success",
+        "display_smiles": "CCO",
+        "has_3d_payload": True,
+        "has_graph_payload": False,
+    }
+
+
+def test_structure_search_filters_by_sample_id_and_smiles_text() -> None:
+    with running_server() as base_url:
+        by_id = loads(fetch_text(f"{base_url}/api/structures?query=0006"))
+        by_smiles = loads(fetch_text(f"{base_url}/api/structures?query=benzene"))
+
+    assert [record["sample_id"] for record in by_id["records"]] == ["poly-0006"]
+    assert [record["sample_id"] for record in by_smiles["records"]] == ["poly-0003"]
+
+
+def test_structure_status_filter_returns_fixture_backed_browser_states() -> None:
+    with running_server() as base_url:
+        successes = loads(fetch_text(f"{base_url}/api/structures?status=geometry_success"))
+        failures = loads(fetch_text(f"{base_url}/api/structures?status=geometry_failure"))
+        not_generated = loads(fetch_text(f"{base_url}/api/structures?status=not_generated"))
+        chemistry_failed = loads(fetch_text(f"{base_url}/api/structures?status=chemistry_failed"))
+
+    assert [record["sample_id"] for record in successes["records"]] == [
+        "poly-0001",
+        "poly-0002",
+        "1125785790",
+    ]
+    assert [record["sample_id"] for record in failures["records"]] == ["poly-0006"]
+    assert [record["sample_id"] for record in not_generated["records"]] == [
+        "poly-0003",
+        "poly-0005",
+    ]
+    assert [record["sample_id"] for record in chemistry_failed["records"]] == [
+        "poly-0004",
+        "poly-0007",
+        "poly-0008",
+    ]
+
+
+def test_backend_serves_successful_structure_detail() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["sample_id"] == "poly-0001"
+    assert detail["smiles"]["raw"] == "CCO"
+    assert detail["smiles"]["canonical"] == "CCO"
+    assert detail["smiles"]["selected_geometry_input"] == "CCO"
+    assert detail["smiles"]["attachment_points"] == []
+    assert detail["provenance"]["chemistry_config_id"] == "chemistry-audit-fixture-v1"
+    assert detail["provenance"]["geometry_config_id"] == "geometry-rdkit-fixture-v1"
+    assert detail["geometry"]["status"] == "success"
+    assert detail["geometry"]["sdf_text"].endswith("$$$$\n")
+    assert detail["geometry"]["method"]["method_name"] == "rdkit_etkdg_mmff"
+    assert detail["geometry"]["timing"]["runtime_seconds"] == 0.021
+    assert detail["geometry"]["failure"] is None
+    assert detail["geometry"]["payload_ref"] == ("/api/structures/poly-0001/geometry.sdf")
+    assert detail["depiction"] == {
+        "status": "available",
+        "source_smiles": "CCO",
+        "payload_ref": "/api/structures/poly-0001/depiction.svg",
+        "failure": None,
+    }
+    assert detail["graph"]["status"] == "not_generated"
+
+
+def test_backend_serves_failed_structure_detail_with_failure_provenance() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0006"))
+
+    assert detail["geometry"]["status"] == "failed"
+    assert detail["geometry"]["sdf_text"] is None
+    assert detail["geometry"]["method"]["embedding_status"] == "failed"
+    assert detail["geometry"]["timing"]["runtime_seconds"] == 0.112
+    assert detail["geometry"]["failure"] == {
+        "failure_type": "embedding_failed",
+        "stage": "embedding",
+        "message": "RDKit ETKDG embedding failed with status -1.",
+        "method": "rdkit_etkdg_mmff",
+        "recommended_action": "Try a capped input representation or inspect the molecule.",
+    }
+
+
+def test_structure_detail_preserves_fallback_provenance_for_display(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    geometry_records = loads(
+        (
+            Path(__file__).parent
+            / "fixtures"
+            / "structure_viewer_artifacts"
+            / "geometry"
+            / "geometry-rdkit-fixture-v1"
+            / "records.json"
+        ).read_text()
+    )
+    fallback_statuses = [
+        "disabled",
+        "skipped_not_needed",
+        "skipped_dependency_unavailable",
+        "attempted",
+        "success",
+        "failed",
+        "unavailable",
+    ]
+    geometry_records[0]["fallback_provenance"] = [
+        {
+            "method_name": "xtb" if index % 2 else "mlip",
+            "priority": index,
+            "status": status,
+            "reason": f"{status} fixture reason.",
+            "runtime_seconds": None,
+            "dependency_available": status
+            not in {"disabled", "skipped_dependency_unavailable", "unavailable"},
+        }
+        for index, status in enumerate(fallback_statuses, start=1)
+    ]
+    geometry_path = tmp_path / "records.json"
+    geometry_path.write_text(dumps(geometry_records) + "\n")
+    fixture["run_metadata"]["artifact_paths"]["geometry_records"] = str(geometry_path)
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert [
+        fallback["status"] for fallback in detail["geometry"]["fallback_provenance"]
+    ] == fallback_statuses
+
+
+def test_backend_serves_not_generated_and_chemistry_failed_structure_states() -> None:
+    with running_server() as base_url:
+        not_generated = loads(fetch_text(f"{base_url}/api/structures/poly-0005"))
+        chemistry_failed = loads(fetch_text(f"{base_url}/api/structures/poly-0004"))
+
+    assert not_generated["chemistry_status"] == "valid"
+    assert not_generated["geometry"]["status"] == "not_generated"
+    assert not_generated["geometry"]["failure"] is None
+    assert chemistry_failed["chemistry_status"] == "failed"
+    assert chemistry_failed["geometry"]["status"] == "chemistry_failed"
+    assert chemistry_failed["chemistry_failure"]["failure_type"] == "parse_error"
+    assert chemistry_failed["depiction"]["status"] == "upstream_failed"
+    assert chemistry_failed["depiction"]["failure"]["recommended_action"] == (
+        "Inspect the chemistry failure before reviewing 2D structure."
+    )
+    assert chemistry_failed["graph"]["status"] == "not_generated"
+
+
+def test_backend_serves_graph_preview_payload_for_fixture_sample() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/1125785790"))
+        graph = loads(fetch_text(f"{base_url}/api/structures/1125785790/graph.json"))
+
+    assert detail["sample_id"] == "1125785790"
+    assert detail["geometry"]["status"] == "success"
+    assert detail["geometry"]["payload_ref"] == "/api/structures/1125785790/geometry.sdf"
+    assert detail["graph"]["status"] == "available"
+    assert detail["graph"]["payload_ref"] == "/api/structures/1125785790/graph.json"
+    assert detail["graph"]["graph_config_id"] == "graph-fixture-v1"
+    assert detail["graph"]["coordinate_modes"] == ["2d", "3d"]
+    assert detail["graph"]["missing_features"] == ["partial_charge", "chirality_class"]
+    assert len(detail["graph"]["nodes"]) == 37
+    assert len(detail["graph"]["edges"]) == 38
+    assert detail["graph"]["nodes"][0]["element"] == "*"
+    assert detail["graph"]["nodes"][0]["features"]["atomic_number"] == 0
+    assert detail["graph"]["nodes"][2]["coordinates_2d"] == [-5.165, -4.814]
+    assert detail["graph"]["nodes"][2]["coordinates_3d"] == [-6.13, 3.729, 1.809]
+    assert graph == detail["graph"]
+
+
+def test_structure_detail_links_downstream_artifacts_for_fixture_sample() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["downstream"]["status"] == "available"
+    assert detail["downstream"]["artifact_path"] == (
+        "artifacts/downstream/downstream-links-fixture-v1/records.json"
+    )
+    assert detail["downstream"]["references"] == [
+        {
+            "run_id": "run-interface-discovery-fixture-001",
+            "model_family": "ridge",
+            "target": "Tg",
+            "metric": "mean_absolute_error",
+            "split": "validation",
+            "prediction_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/predictions.csv"
+            ),
+            "prediction_ref": "predictions.csv#sample_id=poly-0001&target=Tg",
+            "diagnostic_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/diagnostics.json"
+            ),
+            "diagnostic_ref": "diagnostics.json#sample_id=poly-0001",
+        },
+        {
+            "run_id": "run-interface-discovery-fixture-001",
+            "model_family": "ridge",
+            "target": "FFV",
+            "metric": "weighted_mean_absolute_error",
+            "split": "validation",
+            "prediction_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/predictions.csv"
+            ),
+            "prediction_ref": "predictions.csv#sample_id=poly-0001&target=FFV",
+            "diagnostic_artifact_path": (
+                "artifacts/interface-discovery/run-interface-discovery-fixture-001/coverage.json"
+            ),
+            "diagnostic_ref": "coverage.json#sample_id=poly-0001",
+        },
+    ]
+
+
+def test_structure_detail_reports_unavailable_downstream_links_without_error() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0005"))
+
+    assert detail["downstream"]["status"] == "not_available"
+    assert detail["downstream"]["references"] == []
+    assert detail["downstream"]["message"] == (
+        "No downstream model artifacts are linked for this sample."
+    )
+
+
+def test_structure_detail_reports_missing_downstream_link_artifact(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    fixture["run_metadata"]["artifact_paths"]["downstream_links"] = (
+        "artifacts/downstream/missing-fixture/records.json"
+    )
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["downstream"]["status"] == "artifact_missing"
+    assert detail["downstream"]["references"] == []
+    assert detail["downstream"]["message"] == (
+        "The configured downstream artifact links could not be resolved."
+    )
+
+
+def test_3d_graph_mode_requires_successful_geometry_record(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    geometry_records_path = tmp_path / "geometry-records-without-graph-sample.json"
+    geometry_records = loads(
+        (
+            FIXTURE_PATH.parent
+            / "structure_viewer_artifacts/geometry/geometry-rdkit-fixture-v1/records.json"
+        ).read_text()
+    )
+    geometry_records_path.write_text(
+        dumps([record for record in geometry_records if record["sample_id"] != "1125785790"]) + "\n"
+    )
+    fixture["run_metadata"]["artifact_paths"]["geometry_records"] = str(geometry_records_path)
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/1125785790"))
+        graph = loads(fetch_text(f"{base_url}/api/structures/1125785790/graph.json"))
+
+    assert detail["geometry"]["status"] == "not_generated"
+    assert detail["graph"]["status"] == "available"
+    assert detail["graph"]["coordinate_modes"] == ["2d"]
+    assert detail["graph"]["nodes"][2]["coordinates_3d"] is None
+    assert graph["coordinate_modes"] == ["2d"]
+    assert graph["nodes"][2]["coordinates_3d"] is None
+
+
+def test_graph_state_distinguishes_missing_artifact_from_not_generated(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    fixture["run_metadata"]["artifact_paths"]["graph_records"] = (
+        "artifacts/graphs/missing-fixture/records.json"
+    )
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        missing = loads(fetch_text(f"{base_url}/api/structures/1125785790"))
+
+    assert missing["graph"]["status"] == "artifact_missing"
+    assert (
+        missing["graph"]["message"]
+        == "The configured graph records artifact could not be resolved."
+    )
+
+
+def test_structure_detail_marks_smiles_variant_comparison_states() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0002"))
+        changed_detail = loads(fetch_text(f"{base_url}/api/structures/poly-0006"))
+        failed_detail = loads(fetch_text(f"{base_url}/api/structures/poly-0004"))
+
+    variant_states = {variant["name"]: variant["state"] for variant in detail["smiles"]["variants"]}
+    assert variant_states == {
+        "raw": "unchanged",
+        "canonical": "unchanged",
+        "standardized": "unchanged",
+        "capped": "changed",
+        "selected_geometry_input": "selected",
+    }
+    changed_variant_states = {
+        variant["name"]: variant["state"] for variant in changed_detail["smiles"]["variants"]
+    }
+    assert changed_variant_states["canonical"] == "changed"
+    assert changed_variant_states["standardized"] == "changed"
+    assert changed_variant_states["capped"] == "changed"
+    failed_variant_states = {
+        variant["name"]: variant["state"] for variant in failed_detail["smiles"]["variants"]
+    }
+    assert failed_variant_states["raw"] == "unchanged"
+    assert failed_variant_states["canonical"] == "missing"
+    assert failed_variant_states["standardized"] == "missing"
+    assert failed_variant_states["capped"] == "missing"
+    assert failed_variant_states["selected_geometry_input"] == "missing"
+
+
+def test_missing_geometry_artifact_is_distinct_from_not_generated(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    fixture["run_metadata"]["artifact_paths"]["geometry_records"] = (
+        "artifacts/geometry/missing-fixture/records.json"
+    )
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["geometry"]["status"] == "artifact_missing"
+    assert detail["geometry"]["failure"] is None
+
+
+def test_backend_serves_structure_sdf_payload() -> None:
+    with running_server() as base_url:
+        sdf_text = fetch_text(f"{base_url}/api/structures/poly-0001/geometry.sdf")
+
+    assert "poly-0001" in sdf_text
+    assert sdf_text.endswith("$$$$\n")
+
+
+def test_backend_serves_on_demand_structure_2d_svg_payload() -> None:
+    with running_server() as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+        svg_text = fetch_text(f"{base_url}/api/structures/poly-0001/depiction.svg")
+
+    assert detail["depiction"]["payload_ref"] == "/api/structures/poly-0001/depiction.svg"
+    assert svg_text.lstrip().startswith("<?xml")
+    assert "<svg" in svg_text
+    assert "</svg>" in svg_text
+
+
+def test_structure_detail_reports_2d_render_failure_status(tmp_path: Path) -> None:
+    fixture = loads(FIXTURE_PATH.read_text())
+    chemistry_records = loads(
+        (
+            Path(__file__).parent
+            / "fixtures"
+            / "structure_viewer_artifacts"
+            / "chemistry"
+            / "chemistry-audit-fixture-v1"
+            / "records.json"
+        ).read_text()
+    )
+    chemistry_records[0]["capped_smiles"] = "not-a-smiles"
+    chemistry_path = tmp_path / "records.json"
+    chemistry_path.write_text(dumps(chemistry_records) + "\n")
+    fixture["run_metadata"]["artifact_paths"]["chemistry_records"] = str(chemistry_path)
+    local_fixture = tmp_path / "interface_discovery_run.json"
+    local_fixture.write_text(dumps(fixture) + "\n")
+
+    with running_server(local_fixture) as base_url:
+        detail = loads(fetch_text(f"{base_url}/api/structures/poly-0001"))
+
+    assert detail["depiction"]["status"] == "render_failed"
+    assert detail["depiction"]["failure"]["message"] == (
+        "RDKit could not parse the selected SMILES for 2D depiction."
+    )
 
 
 def test_gui_metric_filter_changes_visible_metric_and_leaderboard_rows() -> None:
@@ -97,8 +772,8 @@ def test_gui_metric_filter_changes_visible_metric_and_leaderboard_rows() -> None
 
 
 @contextmanager
-def running_server() -> Iterator[str]:
-    server = create_interface_discovery_server(FIXTURE_PATH, port=0)
+def running_server(fixture_path: Path = FIXTURE_PATH) -> Iterator[str]:
+    server = create_interface_discovery_server(fixture_path, port=0)
     host = server.bind_host
     port = server.server_port
     thread = Thread(target=server.serve_forever, daemon=True)
@@ -114,3 +789,49 @@ def running_server() -> Iterator[str]:
 def fetch_text(url: str) -> str:
     with urlopen(url, timeout=5) as response:
         return cast(str, response.read().decode("utf-8"))
+
+
+def write_real_layout_chemistry_artifacts(tmp_path: Path) -> Path:
+    dataset = DatasetConfig(
+        dataset_version="open-polymer-train-fixture-v1",
+        sample_id_column="id",
+        smiles_column="SMILES",
+        target_columns=("Tg", "FFV", "Tc", "Density", "Rg"),
+    )
+    chemistry = ChemistryAuditConfig(
+        config_id="chemistry-real-layout-v1",
+        capping=CappingConfig(strategy="hydrogen", version="1"),
+    )
+    artifact = audit_dataset_rows(
+        (
+            {"id": "poly-ethanol", "SMILES": "CCO"},
+            {"id": "poly-invalid", "SMILES": "not-a-smiles"},
+        ),
+        dataset,
+        chemistry,
+        rdkit_version="test-rdkit-version",
+    )
+    paths = write_chemistry_audit_artifacts(
+        artifact,
+        tmp_path / "artifacts",
+        created_at="2026-08-28T12:00:00+00:00",
+    )
+    return Path(paths.artifact_root).resolve()
+
+
+def write_real_layout_geometry_artifacts(tmp_path: Path, chemistry_root: Path) -> Path:
+    result = geometry_main(
+        (
+            str(chemistry_root),
+            "--output-root",
+            str(tmp_path / "artifacts"),
+            "--geometry-config-id",
+            "geometry-real-layout-v1",
+            "--random-seed",
+            "13",
+            "--embed-attempts",
+            "5",
+        )
+    )
+    assert result == 0
+    return (tmp_path / "artifacts" / "geometry" / "geometry-real-layout-v1").resolve()

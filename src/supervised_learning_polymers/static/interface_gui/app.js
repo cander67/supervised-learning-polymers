@@ -2,7 +2,19 @@ const state = {
   artifact: null,
   failureFilter: "all",
   metricFilter: "all",
+  structureFilter: "all",
+  structureQuery: "",
+  structureRows: [],
+  selectedStructureId: null,
+  failureTriage: null,
+  selectedFailureDomain: null,
+  selectedFailureType: null,
+  selectedFailureSampleId: null,
+  graphMode: "2d",
+  graphViewer: null,
 };
+
+const nativeFetch = (window.__nativeFetch || window.fetch).bind(window);
 
 const text = (value) => document.createTextNode(value);
 
@@ -11,6 +23,11 @@ function setText(id, value) {
 }
 
 function clear(element) {
+  if (element.id === "structure-graph-panel" && state.graphViewer) {
+    state.graphViewer.destroy();
+    state.graphViewer = null;
+    element.graphViewer = null;
+  }
   while (element.firstChild) {
     element.removeChild(element.firstChild);
   }
@@ -24,6 +41,26 @@ function field(label, value) {
   key.appendChild(text(label));
   const val = document.createElement("span");
   val.appendChild(text(value));
+  row.append(key, val);
+  return row;
+}
+
+function badge(value, className = "") {
+  const span = document.createElement("span");
+  span.className = className ? `badge ${className}` : "badge";
+  span.appendChild(text(value));
+  return span;
+}
+
+function smilesVariantField(variant) {
+  const row = document.createElement("div");
+  row.className = "field smiles-variant";
+  row.dataset.state = variant.state;
+  const key = document.createElement("span");
+  key.className = "field-label";
+  key.append(text(variant.label), badge(variant.state, `badge-${variant.state}`));
+  const val = document.createElement("code");
+  val.appendChild(text(variant.value || "n/a"));
   row.append(key, val);
   return row;
 }
@@ -45,6 +82,33 @@ function cell(value, className = "") {
   if (className) td.className = className;
   td.appendChild(text(value));
   return td;
+}
+
+function buttonCell(label, onClick) {
+  const td = document.createElement("td");
+  td.appendChild(actionButton(label, onClick));
+  return td;
+}
+
+function actionButton(label, onClick, className = "link-button") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.appendChild(text(label));
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function statusChip(value) {
+  const span = document.createElement("span");
+  span.className = "status-chip";
+  span.dataset.status = value;
+  span.appendChild(text(statusLabel(value)));
+  return span;
+}
+
+function statusLabel(value) {
+  return value.replaceAll("_", " ");
 }
 
 function renderArtifact(artifact) {
@@ -103,6 +167,8 @@ function renderArtifact(artifact) {
   renderMetricRows();
   renderMetricSummary();
   renderLeaderboardRows();
+  loadFailureTriage();
+  loadStructures();
 }
 
 function renderGeometrySummary(geometry) {
@@ -122,9 +188,9 @@ function renderGeometrySummary(geometry) {
   renderTable("geometry-failure-rows", geometry.failure_groups, (group) => {
     const tr = document.createElement("tr");
     tr.append(
-      cell(group.failure_type),
+      buttonCell(group.failure_type, () => openFailureGroup("geometry", group.failure_type)),
       cell(group.count, "num"),
-      cell(group.example_sample_ids.join(", ") || "n/a"),
+      failureExamplesCell(group.example_sample_ids, "geometry", group.failure_type),
       cell(group.recommended_action),
     );
     return tr;
@@ -229,13 +295,756 @@ function renderFailureRows() {
   renderTable("failure-rows", groups, (group) => {
     const tr = document.createElement("tr");
     tr.append(
-      cell(group.failure_type),
+      buttonCell(group.failure_type, () => openFailureGroup("chemistry", group.failure_type)),
       cell(group.count, "num"),
-      cell(group.example_sample_ids.join(", ") || "n/a"),
+      failureExamplesCell(group.example_sample_ids, "chemistry", group.failure_type),
       cell(group.recommended_action),
     );
     return tr;
   });
+}
+
+function loadFailureTriage() {
+  nativeFetch("/api/structure-failures")
+    .then((response) => {
+      if (!response.ok) throw new Error(`Failure triage request failed: ${response.status}`);
+      return response.json();
+    })
+    .then((payload) => {
+      state.failureTriage = payload;
+      const firstGroup = payload.groups[0];
+      if (firstGroup && !state.selectedFailureType) {
+        state.selectedFailureDomain = firstGroup.domain;
+        state.selectedFailureType = firstGroup.failure_type;
+      }
+      renderFailureTriage();
+    })
+    .catch((error) => {
+      renderList("triage-detail-panel", [field("Status", error.message)]);
+      renderTable("triage-group-rows", [], (group) => group);
+      renderTable("triage-example-rows", [], (example) => example);
+    });
+}
+
+function openFailureGroup(domain, failureType, sampleId = null) {
+  state.selectedFailureDomain = domain;
+  state.selectedFailureType = failureType;
+  state.selectedFailureSampleId = sampleId;
+  renderFailureTriage();
+
+  const group = selectedFailureGroup();
+  if (group) {
+    state.structureFilter = group.structure_filter;
+    document.getElementById("structure-filter").value = group.structure_filter;
+  }
+  state.structureQuery = sampleId || "";
+  document.getElementById("structure-search").value = state.structureQuery;
+  loadStructures();
+  document.getElementById("structure-browser").scrollIntoView({ block: "start" });
+}
+
+function selectedFailureGroup() {
+  if (!state.failureTriage || !state.selectedFailureType) return null;
+  return state.failureTriage.groups.find(
+    (group) =>
+      group.domain === state.selectedFailureDomain
+      && group.failure_type === state.selectedFailureType,
+  );
+}
+
+function selectedFailureExamples() {
+  if (!state.failureTriage || !state.selectedFailureType) return [];
+  return state.failureTriage.examples.filter(
+    (example) =>
+      example.domain === state.selectedFailureDomain
+      && example.failure_type === state.selectedFailureType,
+  );
+}
+
+function selectedFailureExample() {
+  const examples = selectedFailureExamples();
+  if (state.selectedFailureSampleId) {
+    return examples.find((example) => example.sample_id === state.selectedFailureSampleId) || examples[0];
+  }
+  return examples[0] || null;
+}
+
+function renderFailureTriage() {
+  if (!state.failureTriage) {
+    renderList("triage-detail-panel", [field("Status", "Loading failure triage")]);
+    return;
+  }
+
+  renderTriagePatternGuide();
+  renderTable("triage-group-rows", state.failureTriage.groups, (group) => {
+    const tr = document.createElement("tr");
+    if (
+      group.domain === state.selectedFailureDomain
+      && group.failure_type === state.selectedFailureType
+    ) {
+      tr.className = "selected-row";
+    }
+    tr.append(
+      buttonCell(
+        `${group.domain}: ${group.failure_type}`,
+        () => openFailureGroup(group.domain, group.failure_type),
+      ),
+      cell(group.count, "num"),
+      failureExamplesCell(group.example_sample_ids, group.domain, group.failure_type),
+      cell(group.recommended_action),
+    );
+    return tr;
+  });
+
+  const examples = selectedFailureExamples();
+  renderTable("triage-example-rows", examples, (example) => {
+    const tr = document.createElement("tr");
+    if (example.sample_id === state.selectedFailureSampleId) tr.className = "selected-row";
+    tr.append(
+      buttonCell(
+        example.sample_id,
+        () => openFailureGroup(example.domain, example.failure_type, example.sample_id),
+      ),
+      cell(example.stage),
+      cell(example.method || "n/a"),
+      cell(example.structure_detail_available ? "structure record" : "failure file only"),
+    );
+    return tr;
+  });
+
+  const example = selectedFailureExample();
+  if (!example) {
+    renderList("triage-detail-panel", [field("Status", "Select a failure group")]);
+    return;
+  }
+
+  const detailRows = [
+    field("Sample", example.sample_id),
+    field("Domain", example.domain),
+    field("Failure", example.failure_type),
+    field("Stage", example.stage),
+    field("Method", example.method || "n/a"),
+    field("Message", example.message),
+    field("Action", example.recommended_action),
+    field("Raw", example.raw_smiles || "n/a"),
+    field("Canonical", example.canonical_smiles || "n/a"),
+    field("Standardized", example.standardized_smiles || "n/a"),
+    field("Capped", example.capped_smiles || "n/a"),
+    field("Selected input", example.selected_input_smiles || "n/a"),
+    field("Input representation", example.selected_input_representation || "n/a"),
+    field("Attachment points", example.attachment_points.length ? example.attachment_points.join(", ") : "none"),
+    field("Runtime", example.runtime_seconds === null ? "n/a" : `${example.runtime_seconds}s`),
+    field("Source", example.structure_detail_available ? "failure file + structure record" : "failure file"),
+  ];
+  example.fallback_provenance.forEach((fallback) => {
+    detailRows.push(
+      field(
+        `Fallback ${fallback.method_name}`,
+        `${fallback.status}: ${fallback.reason}`,
+      ),
+    );
+  });
+  renderList("triage-detail-panel", detailRows);
+}
+
+function renderTriagePatternGuide() {
+  const guide = document.getElementById("triage-pattern-guide");
+  clear(guide);
+  const observedTypes = new Set(state.failureTriage.groups.map((group) => group.failure_type));
+  state.failureTriage.pattern_reference.forEach((failureType) => {
+    guide.appendChild(badge(failureType, observedTypes.has(failureType) ? "badge-selected" : "badge-missing"));
+  });
+}
+
+function failureExamplesCell(sampleIds, domain, failureType) {
+  const td = document.createElement("td");
+  if (!sampleIds.length) {
+    td.appendChild(text("n/a"));
+    return td;
+  }
+  const list = document.createElement("div");
+  list.className = "example-links";
+  sampleIds.forEach((sampleId) => {
+    list.appendChild(actionButton(sampleId, () => openFailureGroup(domain, failureType, sampleId)));
+  });
+  td.appendChild(list);
+  return td;
+}
+
+function structureQueryString() {
+  const params = new URLSearchParams();
+  if (state.structureQuery.trim()) params.set("query", state.structureQuery.trim());
+  if (state.structureFilter !== "all") params.set("status", state.structureFilter);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+function setStructureState(message, mode = "info") {
+  const element = document.getElementById("structure-state");
+  element.textContent = message;
+  element.dataset.state = mode;
+}
+
+function loadStructures() {
+  setStructureState("Loading structures");
+  nativeFetch(`/api/structures${structureQueryString()}`)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Structure request failed: ${response.status}`);
+      return response.json();
+    })
+    .then((payload) => {
+      state.structureRows = payload.records;
+      renderStructureRows(payload.records);
+      if (!payload.records.length) {
+        setStructureState("No structures match the current search and status filter", "empty");
+        renderEmptyStructureDetail();
+        return;
+      }
+      setStructureState(
+        `${payload.returned_records.toLocaleString()} of ${payload.total_records.toLocaleString()} structures`,
+      );
+      const selected = payload.records.find(
+        (record) => record.sample_id === state.selectedStructureId,
+      );
+      selectStructure((selected || payload.records[0]).sample_id);
+    })
+    .catch((error) => {
+      setStructureState(error.message, "error");
+      renderStructureRows([]);
+      renderEmptyStructureDetail();
+    });
+}
+
+function renderStructureRows(records) {
+  renderTable("structure-rows", records, (record) => {
+    const tr = document.createElement("tr");
+    if (record.sample_id === state.selectedStructureId) tr.className = "selected-row";
+    tr.append(
+      buttonCell(record.sample_id, () => selectStructure(record.sample_id)),
+      cell(statusLabel(record.chemistry_status)),
+      cell(statusLabel(record.geometry_status)),
+      cell(record.display_smiles || "n/a", "smiles-cell"),
+    );
+    return tr;
+  });
+}
+
+function selectStructure(sampleId) {
+  state.selectedStructureId = sampleId;
+  nativeFetch(`/api/structures/${encodeURIComponent(sampleId)}`)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Structure detail failed: ${response.status}`);
+      return response.json();
+    })
+    .then((detail) => renderStructureDetail(detail))
+    .catch((error) => {
+      setStructureState(error.message, "error");
+      renderEmptyStructureDetail();
+    });
+}
+
+function renderStructureDetail(detail) {
+  setText("structure-selected-title", detail.sample_id);
+  const selectedStatus = document.getElementById("structure-selected-status");
+  selectedStatus.textContent = statusLabel(detail.geometry.status);
+  selectedStatus.dataset.status = detail.geometry.status;
+
+  renderList("structure-smiles-panel", [
+    ...detail.smiles.variants.map((variant) => smilesVariantField(variant)),
+    field(
+      "Attachment points",
+      detail.smiles.attachment_points.length ? detail.smiles.attachment_points.join(", ") : "none",
+    ),
+  ]);
+  renderDepictionPanel(detail);
+  renderConformerPanel(detail);
+  renderGraphPanel(detail);
+  renderDownstreamPanel(detail);
+
+  const statusRows = [
+    field("Chemistry", detail.chemistry_status),
+    field("Geometry", statusLabel(detail.geometry.status)),
+    field("2D", statusLabel(detail.depiction.status)),
+    field("Graph", statusLabel(detail.graph.status)),
+  ];
+  if (detail.geometry.method) {
+    statusRows.push(
+      field("Method", detail.geometry.method.method_name || "n/a"),
+      field("Embedding", detail.geometry.method.embedding_status || "n/a"),
+      field("Optimization", detail.geometry.method.optimization_status || "n/a"),
+    );
+  }
+  if (detail.geometry.timing) {
+    statusRows.push(field("Runtime", `${detail.geometry.timing.runtime_seconds}s`));
+  }
+  if (detail.geometry.failure) {
+    statusRows.push(
+      field("Failure", detail.geometry.failure.failure_type),
+      field("Stage", detail.geometry.failure.stage),
+      field("Message", detail.geometry.failure.message),
+      field("Action", detail.geometry.failure.recommended_action),
+    );
+  } else if (detail.chemistry_failure) {
+    statusRows.push(
+      field("Failure", detail.chemistry_failure.failure_type),
+      field("Stage", detail.chemistry_failure.stage),
+      field("Message", detail.chemistry_failure.message),
+    );
+  }
+  detail.geometry.fallback_provenance.forEach((fallback) => {
+    statusRows.push(
+      field(
+        `Fallback ${fallback.method_name}`,
+        `${fallback.status}: ${fallback.reason}`,
+      ),
+    );
+  });
+  renderList("structure-status-panel", statusRows);
+
+  renderList("structure-provenance-panel", [
+    field("Chemistry config", detail.provenance.chemistry_config_id),
+    field("Geometry config", detail.provenance.geometry_config_id || "n/a"),
+    field("Chemistry records", detail.provenance.chemistry_records_path || "n/a"),
+    field("Geometry records", detail.provenance.geometry_records_path || "n/a"),
+  ]);
+
+  renderList("structure-panel-states", [
+    field("SMILES", detail.chemistry_status === "valid" ? "available" : "failed upstream"),
+    field("2D", statusLabel(detail.depiction.status)),
+    field(
+      "3D",
+      detail.geometry.status === "success" ? "SDF payload available" : statusLabel(detail.geometry.status),
+    ),
+    field(
+      "Graph",
+      detail.graph.status === "available"
+        ? `${detail.graph.nodes.length} nodes / ${detail.graph.edges.length} edges`
+        : statusLabel(detail.graph.status),
+    ),
+    field(
+      "Downstream",
+      detail.downstream.status === "available"
+        ? `${detail.downstream.references.length} linked artifact(s)`
+        : statusLabel(detail.downstream.status),
+    ),
+  ]);
+
+  renderStructureRows(state.structureRows);
+}
+
+function renderDownstreamPanel(detail) {
+  const panel = document.getElementById("structure-downstream-panel");
+  clear(panel);
+  if (detail.downstream.status !== "available") {
+    panel.appendChild(field("Status", statusLabel(detail.downstream.status)));
+    panel.appendChild(
+      field("Message", detail.downstream.message || "No downstream artifacts are linked."),
+    );
+    return;
+  }
+
+  detail.downstream.references.forEach((reference, index) => {
+    const group = document.createElement("div");
+    group.className = "downstream-reference";
+    group.append(
+      field("Link", String(index + 1)),
+      field("Run", reference.run_id),
+      field("Model family", reference.model_family),
+      field("Target", reference.target),
+      field("Metric", `${reference.metric} (${reference.split})`),
+      field("Prediction", reference.prediction_ref || reference.prediction_artifact_path || "n/a"),
+      field("Diagnostic", reference.diagnostic_ref || reference.diagnostic_artifact_path || "n/a"),
+    );
+    panel.appendChild(group);
+  });
+}
+
+function renderGraphPanel(detail) {
+  const panel = document.getElementById("structure-graph-panel");
+  const modeSelect = document.getElementById("graph-mode");
+  clear(panel);
+  syncGraphModeControl(detail.graph, modeSelect);
+
+  if (detail.graph.status !== "available") {
+    panel.appendChild(field("Status", statusLabel(detail.graph.status)));
+    panel.appendChild(field("Message", detail.graph.message || "No graph artifact is available."));
+    return;
+  }
+
+  const mode = detail.graph.coordinate_modes.includes(state.graphMode)
+    ? state.graphMode
+    : detail.graph.coordinate_modes[0];
+  if (!mode) {
+    panel.appendChild(field("Status", "not generated"));
+    panel.appendChild(field("Message", "No displayable graph coordinate mode is available."));
+    return;
+  }
+  state.graphMode = mode;
+  modeSelect.value = mode;
+
+  const summary = document.createElement("div");
+  summary.className = "graph-summary";
+  summary.append(
+    field("Config", detail.graph.graph_config_id || "n/a"),
+    field("Nodes", detail.graph.nodes.length.toLocaleString()),
+    field("Edges", detail.graph.edges.length.toLocaleString()),
+    field("Mode", mode.toUpperCase()),
+    field("Missing features", detail.graph.missing_features.join(", ") || "none"),
+  );
+  panel.appendChild(summary);
+
+  const cytoscapeLibrary = window.cytoscape;
+  if (!cytoscapeLibrary) {
+    panel.appendChild(field("Status", "Cytoscape asset unavailable"));
+    return;
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "graph-controls";
+  const atomSelect = document.createElement("select");
+  atomSelect.className = "graph-inspection-select";
+  atomSelect.setAttribute("aria-label", "Inspect graph atom");
+  atomSelect.appendChild(optionElement("", "Atom"));
+  detail.graph.nodes.forEach((node) => {
+    atomSelect.appendChild(
+      optionElement(`atom-${node.atom_index}`, `${node.atom_index} ${node.element}`),
+    );
+  });
+  const edgeSelect = document.createElement("select");
+  edgeSelect.className = "graph-inspection-select";
+  edgeSelect.setAttribute("aria-label", "Inspect graph bond");
+  edgeSelect.appendChild(optionElement("", "Bond"));
+  detail.graph.edges.forEach((edge) => {
+    edgeSelect.appendChild(
+      optionElement(`bond-${edge.source}-${edge.target}`, `${edge.source} -> ${edge.target}`),
+    );
+  });
+  const resetButton = document.createElement("button");
+  resetButton.type = "button";
+  resetButton.className = "graph-reset-button";
+  resetButton.textContent = "Reset view";
+  controls.append(atomSelect, edgeSelect, resetButton);
+  panel.appendChild(controls);
+
+  const viewport = document.createElement("div");
+  viewport.className = "graph-viewport";
+  viewport.setAttribute("aria-label", `${mode.toUpperCase()} graph for ${detail.sample_id}`);
+  panel.appendChild(viewport);
+
+  const detailPanel = document.createElement("div");
+  detailPanel.className = "graph-detail-panel";
+  panel.appendChild(detailPanel);
+
+  const elements = graphElements(detail.graph, mode);
+  if (!elements.nodes.length) {
+    detailPanel.appendChild(field("Status", "No coordinates available for selected graph mode."));
+    return;
+  }
+
+  state.graphViewer = cytoscapeLibrary({
+    container: viewport,
+    elements: [...elements.nodes, ...elements.edges],
+    layout: { name: "preset", fit: true, padding: 24 },
+    minZoom: 0.2,
+    maxZoom: 8,
+    wheelSensitivity: 0.22,
+    style: [
+      {
+        selector: "node",
+        style: {
+          "background-color": "data(color)",
+          "border-color": "data(borderColor)",
+          "border-width": "data(borderWidth)",
+          color: "#1f2933",
+          content: "data(label)",
+          "font-size": 8,
+          "text-valign": "center",
+          "text-halign": "center",
+          height: "data(size)",
+          width: "data(size)",
+        },
+      },
+      {
+        selector: "edge",
+        style: {
+          "curve-style": "straight",
+          "line-color": "data(color)",
+          width: "data(width)",
+        },
+      },
+      {
+        selector: ":selected",
+        style: {
+          "border-color": "#2457a6",
+          "border-width": 4,
+          "line-color": "#2457a6",
+          "target-arrow-color": "#2457a6",
+        },
+      },
+      {
+        selector: ".hovered",
+        style: {
+          "overlay-color": "#2457a6",
+          "overlay-opacity": 0.16,
+          "overlay-padding": 8,
+        },
+      },
+    ],
+  });
+  panel.graphViewer = state.graphViewer;
+  renderGraphSelectionDetail(detailPanel, null, mode);
+  state.graphViewer.on("mouseover", "node, edge", (event) => {
+    event.target.addClass("hovered");
+  });
+  state.graphViewer.on("mouseout", "node, edge", (event) => {
+    event.target.removeClass("hovered");
+  });
+  state.graphViewer.on("select", "node, edge", (event) => {
+    const selectedId = event.target.id();
+    atomSelect.value = event.target.isNode() ? selectedId : "";
+    edgeSelect.value = event.target.isEdge() ? selectedId : "";
+    renderGraphSelectionDetail(detailPanel, event.target.data("record"), mode);
+  });
+  state.graphViewer.on("unselect", "node, edge", () => {
+    if (!state.graphViewer.$(":selected").length) {
+      atomSelect.value = "";
+      edgeSelect.value = "";
+      renderGraphSelectionDetail(detailPanel, null, mode);
+    }
+  });
+  atomSelect.addEventListener("change", () => {
+    selectGraphElement(atomSelect.value, detailPanel, mode);
+  });
+  edgeSelect.addEventListener("change", () => {
+    selectGraphElement(edgeSelect.value, detailPanel, mode);
+  });
+  resetButton.addEventListener("click", () => {
+    state.graphViewer.fit(undefined, 24);
+    state.graphViewer.center();
+  });
+}
+
+function optionElement(value, label) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.appendChild(text(label));
+  return option;
+}
+
+function syncGraphModeControl(graph, modeSelect) {
+  const modes = graph.coordinate_modes || [];
+  [...modeSelect.options].forEach((option) => {
+    option.disabled = !modes.includes(option.value);
+  });
+  modeSelect.disabled = graph.status !== "available";
+}
+
+function graphElements(graph, mode) {
+  const positions = new Map();
+  const nodes = graph.nodes.flatMap((node) => {
+    const point = graphPoint(node, mode);
+    if (!point) return [];
+    positions.set(node.atom_index, point);
+    return {
+      group: "nodes",
+      data: {
+        id: `atom-${node.atom_index}`,
+        label: String(node.atom_index),
+        color: graphElementColor(node.element),
+        borderColor: node.element === "*" ? "#7a4b00" : "#1f2933",
+        borderWidth: node.element === "*" ? 3 : 1.5,
+        size: node.element === "*" ? 18 : 14,
+        record: { type: "node", node },
+      },
+      position: { x: point.x * 36, y: point.y * -36 },
+    };
+  });
+  const edges = graph.edges.flatMap((edge) => {
+    if (!positions.has(edge.source) || !positions.has(edge.target)) return [];
+    return {
+      group: "edges",
+      data: {
+        id: `bond-${edge.source}-${edge.target}`,
+        source: `atom-${edge.source}`,
+        target: `atom-${edge.target}`,
+        color: edge.features?.aromatic ? "#8b5cf6" : "#8aa09a",
+        width: edge.bond_order > 1 ? 3 : 2,
+        record: { type: "edge", edge },
+      },
+    };
+  });
+  return { nodes, edges };
+}
+
+function graphPoint(node, mode) {
+  if (mode === "3d" && node.coordinates_3d) {
+    return { x: node.coordinates_3d[0], y: node.coordinates_3d[1] + node.coordinates_3d[2] * 0.28 };
+  }
+  if (node.coordinates_2d) return { x: node.coordinates_2d[0], y: node.coordinates_2d[1] };
+  return null;
+}
+
+function graphElementColor(element) {
+  return {
+    "*": "#ffe08a",
+    C: "#4b5563",
+    N: "#60a5fa",
+    O: "#f87171",
+  }[element] || "#a7b5af";
+}
+
+function selectGraphElement(elementId, detailPanel, mode) {
+  if (!state.graphViewer) return;
+  state.graphViewer.elements().unselect();
+  if (!elementId) {
+    renderGraphSelectionDetail(detailPanel, null, mode);
+    return;
+  }
+  const element = state.graphViewer.$id(elementId);
+  if (!element.length) return;
+  element.select();
+  state.graphViewer.center(element);
+}
+
+function renderGraphSelectionDetail(panel, selection, mode) {
+  clear(panel);
+  if (!selection) {
+    panel.appendChild(field("Selection", "Select an atom or bond to inspect details."));
+    return;
+  }
+  if (selection.type === "node") {
+    const node = selection.node;
+    const coordinates = mode === "3d" ? node.coordinates_3d : node.coordinates_2d;
+    panel.append(
+      field("Atom", String(node.atom_index)),
+      field("Element", node.element),
+      field("Coordinates", coordinates ? coordinates.join(", ") : "unavailable"),
+      field("Features", formatFeatureMap(node.features)),
+    );
+    return;
+  }
+  const edge = selection.edge;
+  panel.append(
+    field("Bond", `${edge.source} -> ${edge.target}`),
+    field("Order", String(edge.bond_order)),
+    field("Features", formatFeatureMap(edge.features)),
+  );
+}
+
+function formatFeatureMap(features) {
+  const entries = Object.entries(features || {});
+  if (!entries.length) return "none";
+  return entries.map(([key, value]) => `${key}: ${value}`).join(", ");
+}
+
+function renderConformerPanel(detail) {
+  const panel = document.getElementById("structure-3d-panel");
+  clear(panel);
+  if (detail.geometry.status !== "success" || !detail.geometry.sdf_text) {
+    const rows = [
+      field("Status", statusLabel(detail.geometry.status)),
+    ];
+    if (detail.geometry.failure) {
+      rows.push(
+        field("Failure", detail.geometry.failure.failure_type),
+        field("Stage", detail.geometry.failure.stage),
+        field("Method", detail.geometry.failure.method),
+        field("Message", detail.geometry.failure.message),
+        field("Action", detail.geometry.failure.recommended_action),
+      );
+    }
+    if (detail.geometry.timing) {
+      rows.push(field("Runtime", `${detail.geometry.timing.runtime_seconds}s`));
+    }
+    if (!detail.geometry.failure) {
+      rows.push(field("SDF", "unavailable"));
+      rows.push(field("Action", geometryUnavailableAction(detail.geometry.status)));
+    }
+    rows.forEach((row) => panel.appendChild(row));
+    return;
+  }
+
+  const threeDmol = window.$3Dmol || window["3Dmol"];
+  if (!threeDmol) {
+    panel.appendChild(field("Status", "3Dmol asset unavailable"));
+    return;
+  }
+
+  const viewerElement = document.createElement("div");
+  viewerElement.className = "molecule-viewer";
+  viewerElement.setAttribute("aria-label", `3D conformer for ${detail.sample_id}`);
+  panel.appendChild(viewerElement);
+
+  const viewer = threeDmol.createViewer(viewerElement, {
+    backgroundColor: "white",
+  });
+  viewer.addModel(detail.geometry.sdf_text, "sdf");
+  viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.22 } });
+  viewer.zoomTo();
+  viewer.render();
+}
+
+function geometryUnavailableAction(status) {
+  if (status === "not_generated") {
+    return "Generate geometry artifacts for this sample to view a 3D conformer.";
+  }
+  if (status === "artifact_missing") {
+    return "Resolve the geometry records artifact path for this run.";
+  }
+  if (status === "chemistry_failed") {
+    return "Fix the upstream chemistry record before geometry can be generated.";
+  }
+  return "Inspect upstream artifact provenance for this sample.";
+}
+
+function renderDepictionPanel(detail) {
+  const panel = document.getElementById("structure-2d-panel");
+  clear(panel);
+  if (detail.depiction.status !== "available") {
+    const rows = [
+      field("Status", statusLabel(detail.depiction.status)),
+      field("Action", detail.depiction.failure?.recommended_action || "Inspect upstream artifacts"),
+    ];
+    if (detail.depiction.failure) {
+      rows.splice(1, 0, field("Message", detail.depiction.failure.message));
+    }
+    rows.forEach((row) => panel.appendChild(row));
+    return;
+  }
+
+  const image = document.createElement("img");
+  image.alt = `2D structure for ${detail.sample_id}`;
+  image.src = detail.depiction.payload_ref;
+  image.addEventListener("error", () => {
+    clear(panel);
+    panel.appendChild(field("Status", "render failed"));
+    panel.appendChild(field("Action", "Inspect the selected SMILES representation for depiction"));
+  });
+  panel.appendChild(image);
+}
+
+function renderEmptyStructureDetail() {
+  setText("structure-selected-title", "No sample selected");
+  const selectedStatus = document.getElementById("structure-selected-status");
+  selectedStatus.textContent = "Unavailable";
+  selectedStatus.dataset.status = "unavailable";
+  renderList("structure-smiles-panel", [field("Status", "No selected structure")]);
+  renderList("structure-2d-panel", [field("Status", "No selected structure")]);
+  renderList("structure-3d-panel", [field("Status", "No selected structure")]);
+  renderList("structure-graph-panel", [field("Status", "No selected structure")]);
+  renderList("structure-downstream-panel", [field("Status", "No selected structure")]);
+  renderList("structure-status-panel", [field("Status", "No selected structure")]);
+  renderList("structure-provenance-panel", [
+    field("Chemistry records", state.artifact?.run_metadata.artifact_paths.chemistry_records || "n/a"),
+    field("Geometry records", state.artifact?.run_metadata.artifact_paths.geometry_records || "n/a"),
+  ]);
+  renderList("structure-panel-states", [
+    field("SMILES", "unavailable"),
+    field("2D", "unavailable"),
+    field("3D", "unavailable"),
+    field("Graph", "unavailable"),
+    field("Downstream", "unavailable"),
+  ]);
 }
 
 document.getElementById("failure-filter").addEventListener("change", (event) => {
@@ -250,7 +1059,22 @@ document.getElementById("metric-filter").addEventListener("change", (event) => {
   renderLeaderboardRows();
 });
 
-fetch("/api/artifact")
+document.getElementById("structure-search").addEventListener("input", (event) => {
+  state.structureQuery = event.target.value;
+  loadStructures();
+});
+
+document.getElementById("structure-filter").addEventListener("change", (event) => {
+  state.structureFilter = event.target.value;
+  loadStructures();
+});
+
+document.getElementById("graph-mode").addEventListener("change", (event) => {
+  state.graphMode = event.target.value;
+  if (state.selectedStructureId) selectStructure(state.selectedStructureId);
+});
+
+nativeFetch("/api/artifact")
   .then((response) => {
     if (!response.ok) throw new Error(`Artifact request failed: ${response.status}`);
     return response.json();

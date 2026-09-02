@@ -1,0 +1,23 @@
+[
+  {
+    "sample_id": "poly-0004",
+    "raw_smiles": "not-a-smiles",
+    "failure_type": "parse_error",
+    "message": "RDKit could not parse source SMILES.",
+    "stage": "parse"
+  },
+  {
+    "sample_id": "poly-0007",
+    "raw_smiles": "standardization-error",
+    "failure_type": "standardization_error",
+    "message": "RDKit standardization failed: fixture error.",
+    "stage": "standardization"
+  },
+  {
+    "sample_id": "poly-0008",
+    "raw_smiles": "*invalid-cap*",
+    "failure_type": "capping_error",
+    "message": "RDKit capping failed: fixture error.",
+    "stage": "capping"
+  }
+]

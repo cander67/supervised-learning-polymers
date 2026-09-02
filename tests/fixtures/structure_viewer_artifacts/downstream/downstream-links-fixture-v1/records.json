@@ -1,0 +1,29 @@
+[
+  {
+    "sample_id": "poly-0001",
+    "references": [
+      {
+        "run_id": "run-interface-discovery-fixture-001",
+        "model_family": "ridge",
+        "target": "Tg",
+        "metric": "mean_absolute_error",
+        "split": "validation",
+        "prediction_artifact_path": "artifacts/interface-discovery/run-interface-discovery-fixture-001/predictions.csv",
+        "prediction_ref": "predictions.csv#sample_id=poly-0001&target=Tg",
+        "diagnostic_artifact_path": "artifacts/interface-discovery/run-interface-discovery-fixture-001/diagnostics.json",
+        "diagnostic_ref": "diagnostics.json#sample_id=poly-0001"
+      },
+      {
+        "run_id": "run-interface-discovery-fixture-001",
+        "model_family": "ridge",
+        "target": "FFV",
+        "metric": "weighted_mean_absolute_error",
+        "split": "validation",
+        "prediction_artifact_path": "artifacts/interface-discovery/run-interface-discovery-fixture-001/predictions.csv",
+        "prediction_ref": "predictions.csv#sample_id=poly-0001&target=FFV",
+        "diagnostic_artifact_path": "artifacts/interface-discovery/run-interface-discovery-fixture-001/coverage.json",
+        "diagnostic_ref": "coverage.json#sample_id=poly-0001"
+      }
+    ]
+  }
+]

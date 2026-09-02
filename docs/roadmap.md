@@ -75,19 +75,18 @@ pulled forward because it becomes useful earlier than originally planned.
 
 ## Current Status
 
-- Accepted PRDs: PRD 01 benchmark contract, PRD 02 public interface discovery, and PRD 03
-  full-training-set chemistry audit.
-- PRD ready for review: PRD 04 early 3D geometry groundwork.
-- Current PRD 04 status: implemented locally with typed geometry contracts, RDKit ETKDG/MMFF
-  conformer attempts, persisted geometry artifacts, CLI generation, GUI/backend fixture alignment,
-  and reviewer documentation. It is not accepted until PRD-level review closes out.
-- Next planned implementation milestone: PRD 13 structure viewer and validation workbench can begin
-  from PRD 04 geometry summary, failure, metadata, and SDF artifact shapes.
-- Next interface PRD after geometry groundwork:
-  `docs/prds/13-structure-viewer-and-validation-workbench.md`
+- Accepted PRDs: PRD 01 benchmark contract, PRD 02 public interface discovery, PRD 03
+  full-training-set chemistry audit, and PRD 04 early 3D geometry groundwork.
+- PRD ready for review: PRD 13 structure viewer and validation workbench.
+- Current PRD 13 status: implemented locally with searchable structure records, SMILES comparison,
+  RDKit 2D depictions, 3Dmol conformer/failure review, Cytoscape graph inspection, failure triage,
+  optional downstream artifact links, and direct launch from real local chemistry and geometry
+  artifact bundles. It is not accepted until PRD-level review closes out.
+- Next planned implementation milestone: PRD 05 fixed-vector representations.
+- Deferred interface follow-up after real ML diagnostics: PRD 14 Cytoscape 3D projection controls.
 - Chemistry audit docs: `docs/chemistry-audit.md`
 - Geometry groundwork docs: `docs/geometry-groundwork.md`
 - Interface alignment docs: `docs/interface-discovery-gui-backend.md`
-- Review status: PRD 03 has been accepted after the final review gate passed locally with the
-  chemistry audit contract, artifacts, opt-in full-data script, and GUI/backend summary fixture in
-  place.
+- Review status: PRD 13 is ready for review after deterministic tests and local artifact smoke
+  checks against `artifacts/chemistry/chemistry-audit-v1` and
+  `artifacts/geometry/geometry-rdkit-v1`.
