@@ -21,12 +21,12 @@ Status legend:
 | 2 | Accepted | [Public Interface Discovery](prds/02-public-interface-discovery.md) | Compare notebook, CLI/report, and GUI/backend options against actual artifact workflows. | Closed out with the GUI/backend path selected in [Public Interface Discovery Decision](interface-discovery-decision.md). |
 | 3 | Accepted | [Full-Training-Set Chemistry Audit](prds/03-full-training-set-chemistry-audit.md) | Parse, validate, standardize, cap, and persist chemistry audit artifacts for the full training set. | Closed out with the final review gate passing locally, including fixture tests, default tests, full-data audit, chemistry docs, and GUI/backend fixture alignment. |
 | 4 | Accepted | [Early 3D Geometry Groundwork](prds/04-early-3d-geometry-groundwork.md) | Measure conformer feasibility, provenance, fallback behavior, coverage, and runtime. | Closed out with the final review gate passing locally, including fixture tests, default tests, full-training-set geometry results, geometry docs, and GUI/backend fixture alignment. |
+| 5 | Accepted | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | Closed out with deterministic fixture coverage, direct launch from local chemistry and geometry artifact bundles, and accepted GUI/backend structure-review docs. |
 
 ## Current Work
 
-| Order | Status | PRD | Scope | Notes |
-| --- | --- | --- | --- | --- |
-| 5 | Ready for review | [Structure Viewer And Validation Workbench](prds/13-structure-viewer-and-validation-workbench.md) | Add GUI panels for SMILES, 2D structures, 3D conformers, and 2D/3D graph representations. | Implemented with deterministic fixture coverage plus direct launch from local chemistry and geometry artifact bundles. |
+No PRD is active. The next project step is a user-testing round against the accepted GUI/backend
+artifact viewer and structure workbench before selecting the next implementation PRD.
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -55,5 +55,5 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
   depend on exists.
 - Update this backlog when a PRD enters implementation, reaches review, or is split into smaller
   PRDs.
-- Keep PRD 13 at ready-for-review status until PRD-level review closes; later accepted status should
-  follow only after review, not merely after implementation.
+- Use the next user-testing round to decide whether PRD 05 remains the best next implementation
+  milestone or whether a smaller interface, data-quality, or modeling PRD should be pulled forward.

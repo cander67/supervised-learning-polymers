@@ -76,17 +76,19 @@ pulled forward because it becomes useful earlier than originally planned.
 ## Current Status
 
 - Accepted PRDs: PRD 01 benchmark contract, PRD 02 public interface discovery, PRD 03
-  full-training-set chemistry audit, and PRD 04 early 3D geometry groundwork.
-- PRD ready for review: PRD 13 structure viewer and validation workbench.
-- Current PRD 13 status: implemented locally with searchable structure records, SMILES comparison,
-  RDKit 2D depictions, 3Dmol conformer/failure review, Cytoscape graph inspection, failure triage,
-  optional downstream artifact links, and direct launch from real local chemistry and geometry
-  artifact bundles. It is not accepted until PRD-level review closes out.
-- Next planned implementation milestone: PRD 05 fixed-vector representations.
+  full-training-set chemistry audit, PRD 04 early 3D geometry groundwork, and PRD 13 structure
+  viewer and validation workbench.
+- Current PRD 13 status: accepted. The local GUI/backend now provides searchable structure records,
+  SMILES comparison, RDKit 2D depictions, 3Dmol conformer/failure review, Cytoscape graph
+  inspection, failure triage, optional downstream artifact links, and direct launch from real local
+  chemistry and geometry artifact bundles.
+- Current project mode: no PRD is active while the accepted viewer gets a user-testing round.
+- Next PRD selection: confirm after user testing whether PRD 05 fixed-vector representations remains
+  the best next implementation milestone or whether feedback suggests pulling forward a smaller
+  interface, data-quality, or modeling PRD.
 - Deferred interface follow-up after real ML diagnostics: PRD 14 Cytoscape 3D projection controls.
 - Chemistry audit docs: `docs/chemistry-audit.md`
 - Geometry groundwork docs: `docs/geometry-groundwork.md`
 - Interface alignment docs: `docs/interface-discovery-gui-backend.md`
-- Review status: PRD 13 is ready for review after deterministic tests and local artifact smoke
-  checks against `artifacts/chemistry/chemistry-audit-v1` and
-  `artifacts/geometry/geometry-rdkit-v1`.
+- User-testing target: run the accepted structure workbench against
+  `artifacts/chemistry/chemistry-audit-v1` and `artifacts/geometry/geometry-rdkit-v1`.

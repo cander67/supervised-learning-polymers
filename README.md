@@ -6,6 +6,8 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 
 ## Documentation
 
+- Current status: PRDs 01, 02, 03, 04, and 13 are accepted. No PRD is active while the structure
+  workbench gets a user-testing round before the next implementation PRD is selected.
 - [Project backlog](docs/backlog.md)
 - [Benchmark contract](docs/benchmark-contract.md)
 - [Chemistry audit](docs/chemistry-audit.md)

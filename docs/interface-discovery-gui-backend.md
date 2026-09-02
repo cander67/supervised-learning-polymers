@@ -215,6 +215,6 @@ inside PRD 13.
 - **Limits**: The prototype is not a long-running experiment orchestrator, authentication layer, or
   production web app. Phase 6 should decide whether to keep this path, replace it with a richer app
   stack, or retain it only as a local review utility.
-- **Review status**: PRD 13 is implemented as a local artifact viewer and ready for PRD-level
-  review. It supports deterministic fixture review and direct launch from existing chemistry and
-  geometry artifact bundles.
+- **Review status**: PRD 13 is accepted as a local artifact viewer. It supports deterministic
+  fixture review and direct launch from existing chemistry and geometry artifact bundles. The next
+  project step is user testing before selecting the next implementation PRD.
