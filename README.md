@@ -76,6 +76,12 @@ slp-structure-viewer \
 
 Then open `http://127.0.0.1:8765` in your web browser.
 
+## Results
+
+Exploratory data analysis of the dataset can be found in [eda.ipynb](eda.ipynb).
+
+Evaluation of the capping strategy can be found in [capping-strategy-audit.md](docs/capping-strategy-audit.md), which provides a detailed comparison of uncapped, hydrogen-capped, and carbon-capped chemistry inputs and their impact on geometry coverage and failure modes.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
