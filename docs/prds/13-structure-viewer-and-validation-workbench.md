@@ -85,9 +85,10 @@ browser, then as a full structure and graph validation workbench once graph arti
 
 ## Implementation Review Notes
 
-Status: active review hardening. The local GUI/backend now exposes searchable structure records,
+Status: ready for PRD-level review. The local GUI/backend now exposes searchable structure records,
 coordinated SMILES, RDKit 2D, 3Dmol conformer/failure, Cytoscape graph-inspection, failure triage,
-and optional downstream-reference panels from persisted artifacts.
+optional downstream-reference panels, and direct launch from persisted local chemistry and geometry
+artifact bundles.
 
 The implementation keeps current interface summary path keys and discovers detailed chemistry and
 geometry bundle siblings from those paths. Optional graph and downstream links are direct artifact
@@ -98,6 +99,8 @@ policy, fallback method execution or selection, chemistry correction workflows, 
 and coverage-bias analysis. Those should be handled by later model or geometry-hardening PRDs after
 more real ML diagnostics exist.
 
-Before returning to PRD-level review, add a real-local-artifact launcher so reviewers can start the
-same GUI directly from existing chemistry and geometry artifact bundles without manually creating an
-interface wrapper JSON.
+Phase 9 added a real-local-artifact launcher so reviewers can start the same GUI directly from
+existing chemistry and geometry artifact bundles without manually creating an interface wrapper
+JSON. The current local artifact smoke path uses `artifacts/chemistry/chemistry-audit-v1` and
+`artifacts/geometry/geometry-rdkit-v1`, which contain 7,973 chemistry-valid records, 7,180 geometry
+successes, 793 geometry failures, and 90.05% geometry coverage.
