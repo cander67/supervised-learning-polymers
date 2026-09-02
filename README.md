@@ -17,25 +17,62 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 - [Public interface discovery criteria](docs/interface-discovery-criteria.md)
 - [Target properties](docs/target-properties.md)
 
-## Local GUI
+## Quick Start
 
-Launch the artifact viewer and PRD 13 structure workbench against existing local chemistry and
-geometry artifacts with:
+### Smoke Test
 
-```bash
-slp-structure-viewer \
-  --chemistry-artifact artifacts/chemistry/chemistry-audit-v1 \
-  --geometry-artifact artifacts/geometry/geometry-rdkit-v1 \
-  --port 8765
-```
-
-Then open `http://127.0.0.1:8765`.
-
-For deterministic fixture review, launch the committed interface artifact with:
+For a deterministic check of your setup, you can launch the committed artifact viewer with:
 
 ```bash
 slp-interface-gui tests/fixtures/interface_discovery_run.json --port 8765
 ```
+
+Then open `http://127.0.0.1:8765` in your web browser.
+
+### Structure Viewer and Workbench
+
+First, create the necessary local data directories if they do not already exist and add your data files:
+
+```bash
+mkdir -p data/train data/test
+```
+
+Next, create the necessary local chemistry and geometry artifact directories if they do not already exist:
+
+```bash
+mkdir -p artifacts/chemistry artifacts/geometry
+```
+
+Then perform a chemistry audit and generate the corresponding geometry artifacts with:
+
+```bash
+slp-chemistry-audit data/train/train.csv \
+  --output-root artifacts \
+  --dataset-version open-polymer-train-v1 \
+  --chemistry-config-id chemistry-audit-hydrogen \
+  --capping-strategy hydrogen
+```
+
+and:
+
+```bash
+slp-geometry-feasibility artifacts/chemistry/chemistry-audit-hydrogen \
+  --output-root artifacts \
+  --geometry-config-id geometry-rdkit-hydrogen \
+  --input-representation capped_smiles
+```
+
+Then launch the artifact viewer and structure workbench against existing local chemistry and
+geometry artifacts with:
+
+```bash
+slp-structure-viewer \
+  --chemistry-artifact artifacts/chemistry/chemistry-audit-hydrogen \
+  --geometry-artifact artifacts/geometry/geometry-rdkit-hydrogen \
+  --port 8765
+```
+
+Then open `http://127.0.0.1:8765` in your web browser.
 
 ## License
 
