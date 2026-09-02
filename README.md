@@ -31,6 +31,8 @@ Then open `http://127.0.0.1:8765` in your web browser.
 
 ### Structure Viewer and Workbench
 
+Once the smoke test has passed, you can begin inspecting the input data and explore capping strategies by using the structure viewer and workbench.
+
 First, create the necessary local data directories if they do not already exist and add your data files:
 
 ```bash
