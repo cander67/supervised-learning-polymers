@@ -1,5 +1,7 @@
 # PRD: Fixed-Vector Representations
 
+Status: Ready for review on `vector-representation`.
+
 ## Problem Statement
 
 The benchmark needs reproducible descriptor and fingerprint features before broad model comparison

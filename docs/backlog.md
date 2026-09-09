@@ -27,7 +27,7 @@ Status legend:
 
 | Order | Status | PRD | Scope | Notes |
 | --- | --- | --- | --- | --- |
-| 6 | Active | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | Implementation is underway on `vector-representation`; descriptor, Morgan fingerprint, persistence, CLI, and documentation slices are in progress toward PRD review. |
+| 6 | Ready for review | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | Implemented on `vector-representation` with deterministic fixture tests, full default tests, documented CLI/artifact layout, and an opt-in full-data smoke against `chemistry-audit-hydrogen`. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in

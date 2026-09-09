@@ -47,7 +47,7 @@ pulled forward because it becomes useful earlier than originally planned.
 
 6. **Fixed-Vector Representations**
    Build versioned descriptor and fingerprint features from validated chemistry records. This work
-   is active on the `vector-representation` branch.
+   is ready for review on the `vector-representation` branch.
 
 7. **Frozen Splits And Leakage Checks**
    Create reproducible random, grouped, and structure-aware split artifacts with leakage tests.
@@ -83,7 +83,7 @@ pulled forward because it becomes useful earlier than originally planned.
   SMILES comparison, RDKit 2D depictions, 3Dmol conformer/failure review, Cytoscape graph
   inspection, failure triage, optional downstream artifact links, and direct launch from real local
   chemistry and geometry artifact bundles.
-- Current project mode: PRD 05 fixed-vector representations is active on the
+- Current project mode: PRD 05 fixed-vector representations is ready for review on the
   `vector-representation` branch.
 - Next PRD selection: after PRD 05 review, continue to PRD 06 frozen splits unless user-testing or
   fixed-vector artifact review suggests pulling forward a smaller interface, data-quality, or

@@ -7,7 +7,7 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 ## Documentation
 
 - Current status: PRDs 01, 02, 03, 04, and 13 are accepted. PRD 05 fixed-vector
-  representations is active on the `vector-representation` branch.
+  representations is ready for review on the `vector-representation` branch.
 - [Project backlog](docs/backlog.md)
 - [Benchmark contract](docs/benchmark-contract.md)
 - [Chemistry audit](docs/chemistry-audit.md)

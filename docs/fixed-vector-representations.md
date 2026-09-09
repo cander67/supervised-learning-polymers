@@ -169,3 +169,35 @@ To add another fixed-vector feature set, define and test:
 
 New feature generators should return the same in-memory feature bundle shape used by `rdkit_2d` and
 `morgan_radius2_2048_chiral` so persistence and downstream consumers remain feature-set agnostic.
+
+## Review Status
+
+PRD 05 is ready for review on the `vector-representation` branch. The final local quality gate
+passed with formatting, linting, typing, and the default pytest suite.
+
+Fixture coverage includes descriptor-only, fingerprint-only, and combined CLI generation. The
+default suite uses fixture-sized chemistry artifacts; full-data representation generation is an
+explicit local command and its generated artifacts should stay uncommitted unless intentionally
+promoted.
+
+The latest full-data smoke used:
+
+```bash
+uv run slp-representations artifacts/chemistry/chemistry-audit-hydrogen \
+  --output-root artifacts \
+  --representation-config-id fixed-vector-hydrogen \
+  --morgan-size 2048
+```
+
+It wrote ignored local artifacts to `artifacts/representations/fixed-vector-hydrogen` with:
+
+- `total_chemistry_valid=7953`
+- `attempted=15906`
+- `success=15882`
+- `failed=24`
+- `skipped_chemistry_failed=20`
+- `rdkit_2d=7929x217`
+- `morgan_radius2_2048_chiral=7953x2048`
+
+The 24 representation failures were all `rdkit_2d` `invalid_feature_values`; Morgan fingerprints
+generated rows for all chemistry-valid records.
