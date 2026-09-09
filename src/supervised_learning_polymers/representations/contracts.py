@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from hashlib import sha256
 from importlib import import_module
 from json import dumps
@@ -350,6 +351,7 @@ class RepresentationArtifactPaths(ContractModel):
     """Paths written for one persisted representation artifact bundle."""
 
     artifact_root: str = Field(min_length=1)
+    records: str = Field(min_length=1)
     metadata: str = Field(min_length=1)
     summary: str = Field(min_length=1)
     failures: str = Field(min_length=1)
@@ -441,6 +443,167 @@ def representation_cache_key(
     }
     serialized = dumps(payload, sort_keys=True, separators=(",", ":"))
     return sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def representation_artifact_from_bundles(
+    dataset: DatasetConfig,
+    chemistry: ChemistryAuditConfig,
+    chemistry_cache_key: str,
+    representation: RepresentationConfig,
+    bundles: Sequence[FeatureMatrixBundle],
+    *,
+    rdkit_version: str = RDKIT_VERSION,
+) -> RepresentationArtifact:
+    """Create a top-level representation artifact from generated feature bundles."""
+
+    _validate_feature_bundles_for_representation(representation, bundles)
+    return RepresentationArtifact(
+        dataset=dataset,
+        chemistry=chemistry,
+        chemistry_cache_key=chemistry_cache_key,
+        representation=representation,
+        rdkit_version=rdkit_version,
+        records=tuple(attempt for bundle in bundles for attempt in bundle.attempts),
+        summary=summarize_feature_bundles(bundles),
+    )
+
+
+def summarize_feature_bundles(
+    bundles: Sequence[FeatureMatrixBundle],
+) -> RepresentationSummary:
+    """Aggregate per-feature-set bundle summaries into one representation summary."""
+
+    duplicate_bundle_ids = _duplicates(
+        tuple(bundle.feature_set.feature_set_id for bundle in bundles)
+    )
+    if duplicate_bundle_ids:
+        raise ValueError(
+            "representation feature bundles must be unique by feature set: "
+            f"{', '.join(duplicate_bundle_ids)}"
+        )
+    if not bundles:
+        return RepresentationSummary(
+            total_chemistry_valid_records=0,
+            attempted_records=0,
+            successful_records=0,
+            failed_representation_records=0,
+        )
+
+    total_valid_counts = {bundle.summary.total_chemistry_valid_records for bundle in bundles}
+    if len(total_valid_counts) != 1:
+        raise ValueError("feature bundles must share the same chemistry-valid input count")
+    skipped_upstream_counts = {
+        bundle.summary.skipped_upstream_chemistry_records for bundle in bundles
+    }
+    if len(skipped_upstream_counts) != 1:
+        raise ValueError("feature bundles must share the same upstream chemistry skip count")
+
+    failures = tuple(failure for bundle in bundles for failure in bundle.failures)
+    return RepresentationSummary(
+        total_chemistry_valid_records=next(iter(total_valid_counts)),
+        attempted_records=sum(bundle.summary.attempted_records for bundle in bundles),
+        successful_records=sum(bundle.summary.successful_records for bundle in bundles),
+        failed_representation_records=sum(
+            bundle.summary.failed_representation_records for bundle in bundles
+        ),
+        skipped_upstream_chemistry_records=next(iter(skipped_upstream_counts)),
+        dimensions=tuple(
+            dimension for bundle in bundles for dimension in bundle.summary.dimensions
+        ),
+        failure_groups=_group_representation_failures(failures),
+    )
+
+
+def write_representation_artifacts(
+    artifact: RepresentationArtifact,
+    bundles: Sequence[FeatureMatrixBundle],
+    artifact_root: str | Path,
+    *,
+    created_at: str | None = None,
+) -> RepresentationArtifactPaths:
+    """Persist representation matrices, sidecars, summary, failures, and metadata."""
+
+    _validate_feature_bundles_for_representation(artifact.representation, bundles)
+    bundle_by_id = {bundle.feature_set.feature_set_id: bundle for bundle in bundles}
+    output_dir = representation_artifact_dir(artifact_root, artifact.representation)
+    features_dir = output_dir / "features"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    features_dir.mkdir(parents=True, exist_ok=True)
+
+    matrix_paths: dict[str, str] = {}
+    feature_metadata_paths: dict[str, str] = {}
+    sample_id_paths: dict[str, str] = {}
+    feature_name_paths: dict[str, str] = {}
+    content_hashes: dict[str, str] = {}
+
+    for feature_set_id in artifact.representation.selected_feature_set_ids:
+        bundle = bundle_by_id[feature_set_id]
+        feature_dir = features_dir / feature_set_id
+        feature_dir.mkdir(parents=True, exist_ok=True)
+
+        matrix_path = feature_dir / "matrix.npz"
+        metadata_path = feature_dir / "metadata.json"
+        sample_ids_path = feature_dir / "sample_ids.json"
+        feature_names_path = feature_dir / "feature_names.json"
+
+        np.savez_compressed(matrix_path, features=bundle.matrix)
+        _write_json(sample_ids_path, list(bundle.sample_ids))
+        _write_json(feature_names_path, list(bundle.feature_names))
+        _write_json(metadata_path, bundle.metadata.model_dump(mode="json"))
+
+        matrix_paths[feature_set_id] = str(matrix_path)
+        feature_metadata_paths[feature_set_id] = str(metadata_path)
+        sample_id_paths[feature_set_id] = str(sample_ids_path)
+        feature_name_paths[feature_set_id] = str(feature_names_path)
+        content_hashes[f"{feature_set_id}:matrix"] = bundle.metadata.matrix_hash
+        if bundle.metadata.feature_names_hash is not None:
+            content_hashes[f"{feature_set_id}:feature_names"] = bundle.metadata.feature_names_hash
+
+    paths = RepresentationArtifactPaths(
+        artifact_root=str(output_dir),
+        records=str(output_dir / "records.json"),
+        metadata=str(output_dir / "metadata.json"),
+        summary=str(output_dir / "summary.json"),
+        failures=str(output_dir / "failures.json"),
+        feature_set_matrices=matrix_paths,
+        feature_set_metadata=feature_metadata_paths,
+        sample_ids=sample_id_paths,
+        feature_names=feature_name_paths,
+    )
+    metadata = RepresentationOutputMetadata(
+        artifact_version=artifact.artifact_version,
+        dataset_version=artifact.dataset.dataset_version,
+        chemistry_config_id=artifact.chemistry.config_id,
+        chemistry_cache_key=artifact.chemistry_cache_key,
+        representation_config_id=artifact.representation.config_id,
+        representation_cache_key=representation_cache_key(
+            artifact.dataset,
+            artifact.chemistry,
+            artifact.chemistry_cache_key,
+            artifact.representation,
+            rdkit_version=artifact.rdkit_version,
+        ),
+        rdkit_version=artifact.rdkit_version,
+        feature_sets=artifact.representation.selected_feature_sets(),
+        created_at=created_at or datetime.now(UTC).isoformat(),
+        output_paths=paths,
+        content_hashes=content_hashes,
+    )
+
+    _write_json(
+        Path(paths.records), [record.model_dump(mode="json") for record in artifact.records]
+    )
+    _write_json(
+        Path(paths.failures),
+        [
+            record.failure.model_dump(mode="json")
+            for record in artifact.records
+            if record.failure is not None
+        ],
+    )
+    _write_json(Path(paths.summary), artifact.summary.model_dump(mode="json"))
+    _write_json(Path(paths.metadata), metadata.model_dump(mode="json"))
+    return paths
 
 
 def rdkit_2d_feature_set_config(
@@ -730,6 +893,31 @@ def _selected_input_smiles(
     return chemistry_record.capped_smiles
 
 
+def _validate_feature_bundles_for_representation(
+    representation: RepresentationConfig,
+    bundles: Sequence[FeatureMatrixBundle],
+) -> None:
+    bundle_ids = tuple(bundle.feature_set.feature_set_id for bundle in bundles)
+    duplicate_bundle_ids = _duplicates(bundle_ids)
+    if duplicate_bundle_ids:
+        raise ValueError(
+            "representation feature bundles must be unique by feature set: "
+            f"{', '.join(duplicate_bundle_ids)}"
+        )
+    missing_feature_sets = sorted(set(representation.selected_feature_set_ids) - set(bundle_ids))
+    if missing_feature_sets:
+        raise ValueError(
+            "representation feature bundles are missing selected feature sets: "
+            f"{', '.join(missing_feature_sets)}"
+        )
+    extra_feature_sets = sorted(set(bundle_ids) - set(representation.selected_feature_set_ids))
+    if extra_feature_sets:
+        raise ValueError(
+            "representation feature bundles include unselected feature sets: "
+            f"{', '.join(extra_feature_sets)}"
+        )
+
+
 def _validate_rdkit_2d_feature_set(feature_set: FeatureSetConfig) -> None:
     if feature_set.family != "descriptor":
         raise ValueError("RDKit 2D feature set must use descriptor family")
@@ -927,6 +1115,13 @@ def _group_representation_failures(
 
 def _rdkit_descriptor_items() -> tuple[tuple[str, Any], ...]:
     return tuple(Descriptors.descList)
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.write_text(
+        dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _duplicates(values: tuple[str, ...]) -> list[str]:

@@ -289,6 +289,7 @@ def test_artifact_metadata_records_provenance_paths_hashes_and_feature_settings(
     )
     paths = RepresentationArtifactPaths(
         artifact_root="artifacts/representations/fixed-vector-v1",
+        records="artifacts/representations/fixed-vector-v1/records.json",
         metadata="artifacts/representations/fixed-vector-v1/metadata.json",
         summary="artifacts/representations/fixed-vector-v1/summary.json",
         failures="artifacts/representations/fixed-vector-v1/failures.json",

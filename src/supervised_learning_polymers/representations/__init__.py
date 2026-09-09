@@ -28,7 +28,10 @@ from supervised_learning_polymers.representations.contracts import (
     morgan_fingerprint_feature_set_config,
     rdkit_2d_feature_set_config,
     representation_artifact_dir,
+    representation_artifact_from_bundles,
     representation_cache_key,
+    summarize_feature_bundles,
+    write_representation_artifacts,
 )
 
 __all__ = [
@@ -58,6 +61,9 @@ __all__ = [
     "generate_rdkit_2d_features",
     "morgan_fingerprint_feature_set_config",
     "rdkit_2d_feature_set_config",
+    "representation_artifact_from_bundles",
     "representation_artifact_dir",
     "representation_cache_key",
+    "summarize_feature_bundles",
+    "write_representation_artifacts",
 ]
