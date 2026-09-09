@@ -19,13 +19,16 @@ from supervised_learning_polymers.targets import ContractModel
 
 _rdkit: Any = import_module("rdkit")
 Chem: Any = import_module("rdkit.Chem")
+DataStructs: Any = import_module("rdkit.DataStructs")
 Descriptors: Any = import_module("rdkit.Chem.Descriptors")
+rdFingerprintGenerator: Any = import_module("rdkit.Chem.rdFingerprintGenerator")
 RDKIT_VERSION = str(_rdkit.__version__)
 _MAX_FAILURE_EXAMPLES = 3
 
 MolecularInputRepresentation = Literal["capped_smiles", "standardized_smiles"]
 FeatureFamily = Literal["descriptor", "fingerprint"]
 FeatureNamePolicy = Literal["named", "bit_index", "none"]
+MorganFingerprintMode = Literal["bit", "count"]
 RepresentationAttemptStatus = Literal["success", "failed"]
 RepresentationFailureType = Literal[
     "missing_input_smiles",
@@ -43,7 +46,9 @@ RepresentationProcessingStage = Literal[
 ]
 _RDKit_DESCRIPTOR_FEATURE_SET_ID = "rdkit_2d"
 _RDKit_DESCRIPTOR_METHOD = "rdkit.Chem.Descriptors"
-_DESCRIPTOR_RECOMMENDED_ACTIONS: dict[RepresentationFailureType, str] = {
+_MORGAN_FINGERPRINT_FEATURE_SET_ID = "morgan_radius2_2048_chiral"
+_MORGAN_FINGERPRINT_METHOD = "rdkit.Chem.rdFingerprintGenerator.GetMorganGenerator"
+_RECOMMENDED_ACTIONS: dict[RepresentationFailureType, str] = {
     "missing_input_smiles": (
         "Inspect the upstream chemistry record or choose a representation with SMILES."
     ),
@@ -78,6 +83,15 @@ class FeatureSetConfig(ContractModel):
                 f"{', '.join(duplicate_hash_fields)}"
             )
         return self
+
+
+class MorganFingerprintSettings(ContractModel):
+    """Validated settings for Morgan-style fixed-vector fingerprints."""
+
+    radius: int = Field(default=2, ge=0)
+    size: int = Field(default=2048, ge=1)
+    include_chirality: bool = True
+    mode: MorganFingerprintMode = "bit"
 
 
 class RepresentationConfig(ContractModel):
@@ -372,6 +386,7 @@ class FeatureMatrixMetadata(ContractModel):
     dtype: str = Field(min_length=1)
     rows: int = Field(ge=0)
     columns: int = Field(ge=1)
+    settings: Mapping[str, object] = Field(default_factory=dict)
     feature_names: tuple[str, ...] = Field(default_factory=tuple)
     matrix_hash: str = Field(min_length=1)
     feature_names_hash: str | None = Field(default=None, min_length=1)
@@ -457,6 +472,44 @@ def rdkit_2d_feature_set_config(
     )
 
 
+def morgan_fingerprint_feature_set_config(
+    *,
+    input_representation: MolecularInputRepresentation = "capped_smiles",
+    radius: int = 2,
+    size: int = 2048,
+    include_chirality: bool = True,
+    mode: MorganFingerprintMode = "bit",
+) -> FeatureSetConfig:
+    """Return the default Morgan fingerprint feature-set config."""
+
+    settings = MorganFingerprintSettings(
+        radius=radius,
+        size=size,
+        include_chirality=include_chirality,
+        mode=mode,
+    )
+    return FeatureSetConfig(
+        feature_set_id=_MORGAN_FINGERPRINT_FEATURE_SET_ID,
+        family="fingerprint",
+        version="1",
+        input_representation=input_representation,
+        rdkit_method=_MORGAN_FINGERPRINT_METHOD,
+        settings=settings.model_dump(mode="json"),
+        output_shape=(1, settings.size),
+        feature_name_policy="bit_index",
+        hash_identity_fields=(
+            "feature_set_id",
+            "family",
+            "version",
+            "input_representation",
+            "rdkit_method",
+            "settings",
+            "output_shape",
+            "feature_name_policy",
+        ),
+    )
+
+
 def generate_rdkit_2d_features(
     records: Sequence[ChemistryAuditRecord],
     chemistry: ChemistryAuditConfig,
@@ -521,6 +574,7 @@ def generate_rdkit_2d_features(
         dtype=str(matrix.dtype),
         rows=matrix.shape[0],
         columns=matrix.shape[1],
+        settings=dict(descriptor_feature_set.settings),
         feature_names=descriptor_names,
         matrix_hash=feature_matrix_hash(matrix),
         feature_names_hash=feature_names_hash(descriptor_names),
@@ -545,6 +599,101 @@ def generate_rdkit_2d_features(
         matrix=matrix,
         sample_ids=tuple(sample_ids),
         feature_names=descriptor_names,
+        metadata=metadata,
+        attempts=tuple(attempts),
+        failures=tuple(failures),
+        summary=summary,
+    )
+
+
+def generate_morgan_fingerprint_features(
+    records: Sequence[ChemistryAuditRecord],
+    chemistry: ChemistryAuditConfig,
+    *,
+    feature_set: FeatureSetConfig | None = None,
+    rdkit_version: str = RDKIT_VERSION,
+) -> FeatureMatrixBundle:
+    """Generate deterministic Morgan fingerprint features for valid chemistry records."""
+
+    fingerprint_feature_set = feature_set or morgan_fingerprint_feature_set_config()
+    settings = _validate_morgan_fingerprint_feature_set(fingerprint_feature_set)
+
+    valid_records = tuple(record for record in records if record.status == "valid")
+    matrix_rows: list[list[float]] = []
+    sample_ids: list[str] = []
+    attempts: list[RepresentationAttemptRecord] = []
+    failures: list[RepresentationFailureRecord] = []
+
+    for record in valid_records:
+        values, failure = _generate_morgan_fingerprint_record(
+            record,
+            fingerprint_feature_set,
+            settings,
+        )
+        if failure is None and values is not None:
+            attempts.append(
+                RepresentationAttemptRecord.from_chemistry_record(
+                    record,
+                    chemistry,
+                    fingerprint_feature_set,
+                    status="success",
+                )
+            )
+            matrix_rows.append(values)
+            sample_ids.append(record.sample_id)
+            continue
+
+        assert failure is not None
+        attempts.append(
+            RepresentationAttemptRecord.from_chemistry_record(
+                record,
+                chemistry,
+                fingerprint_feature_set,
+                status="failed",
+                failure=failure,
+            )
+        )
+        failures.append(failure)
+
+    matrix = np.asarray(matrix_rows, dtype=np.float64)
+    if matrix.size == 0:
+        matrix = np.empty((0, settings.size), dtype=np.float64)
+
+    feature_names = tuple(f"bit_{index}" for index in range(settings.size))
+    metadata = FeatureMatrixMetadata(
+        feature_set_id=fingerprint_feature_set.feature_set_id,
+        feature_set_version=fingerprint_feature_set.version,
+        family=fingerprint_feature_set.family,
+        input_representation=fingerprint_feature_set.input_representation,
+        rdkit_version=rdkit_version,
+        dtype=str(matrix.dtype),
+        rows=matrix.shape[0],
+        columns=matrix.shape[1],
+        settings=dict(fingerprint_feature_set.settings),
+        feature_names=feature_names,
+        matrix_hash=feature_matrix_hash(matrix),
+        feature_names_hash=feature_names_hash(feature_names),
+    )
+    summary = RepresentationSummary(
+        total_chemistry_valid_records=len(valid_records),
+        attempted_records=len(attempts),
+        successful_records=len(sample_ids),
+        failed_representation_records=len(failures),
+        skipped_upstream_chemistry_records=len(records) - len(valid_records),
+        dimensions=(
+            FeatureSetDimension(
+                feature_set_id=fingerprint_feature_set.feature_set_id,
+                rows=matrix.shape[0],
+                columns=matrix.shape[1],
+            ),
+        ),
+        failure_groups=_group_representation_failures(failures),
+    )
+    return FeatureMatrixBundle(
+        feature_set=fingerprint_feature_set,
+        matrix=matrix,
+        sample_ids=tuple(sample_ids),
+        feature_names=feature_names,
         metadata=metadata,
         attempts=tuple(attempts),
         failures=tuple(failures),
@@ -592,6 +741,23 @@ def _validate_rdkit_2d_feature_set(feature_set: FeatureSetConfig) -> None:
         raise ValueError("RDKit 2D feature set output shape must be matrix-shaped")
     if feature_set.output_shape[1] != len(_rdkit_descriptor_items()):
         raise ValueError("RDKit 2D feature set column count must match descriptor count")
+
+
+def _validate_morgan_fingerprint_feature_set(
+    feature_set: FeatureSetConfig,
+) -> MorganFingerprintSettings:
+    if feature_set.family != "fingerprint":
+        raise ValueError("Morgan fingerprint feature set must use fingerprint family")
+    if feature_set.rdkit_method != _MORGAN_FINGERPRINT_METHOD:
+        raise ValueError(f"Morgan fingerprint feature set must use {_MORGAN_FINGERPRINT_METHOD}")
+    if feature_set.feature_name_policy != "bit_index":
+        raise ValueError("Morgan fingerprint feature set must use bit-index feature policy")
+    settings = MorganFingerprintSettings.model_validate(feature_set.settings)
+    if len(feature_set.output_shape) != 2:
+        raise ValueError("Morgan fingerprint feature set output shape must be matrix-shaped")
+    if feature_set.output_shape[1] != settings.size:
+        raise ValueError("Morgan fingerprint column count must match configured vector size")
+    return settings
 
 
 def _generate_rdkit_2d_record(
@@ -650,6 +816,70 @@ def _generate_rdkit_2d_record(
     return values, None
 
 
+def _generate_morgan_fingerprint_record(
+    record: ChemistryAuditRecord,
+    feature_set: FeatureSetConfig,
+    settings: MorganFingerprintSettings,
+) -> tuple[list[float] | None, RepresentationFailureRecord | None]:
+    input_smiles = _selected_input_smiles(record, feature_set.input_representation)
+    if input_smiles is None or input_smiles.strip() == "":
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="missing_input_smiles",
+            message=(
+                f"Missing representation input SMILES for '{feature_set.input_representation}'."
+            ),
+            stage="input",
+        )
+
+    with Chem.rdBase.BlockLogs():
+        molecule = Chem.MolFromSmiles(input_smiles)
+    if molecule is None:
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="parse_error",
+            message="RDKit could not parse selected representation input SMILES.",
+            stage="parse",
+        )
+
+    try:
+        generator = rdFingerprintGenerator.GetMorganGenerator(
+            radius=settings.radius,
+            fpSize=settings.size,
+            includeChirality=settings.include_chirality,
+        )
+        vector = np.zeros((settings.size,), dtype=np.float64)
+        if settings.mode == "count":
+            fingerprint = generator.GetCountFingerprint(molecule)
+        else:
+            fingerprint = generator.GetFingerprint(molecule)
+        DataStructs.ConvertToNumpyArray(fingerprint, vector)
+    except Exception as error:
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="fingerprint_error",
+            message=f"RDKit Morgan fingerprint calculation failed: {error}",
+            stage="fingerprint_generation",
+        )
+
+    if any(not isfinite(float(value)) for value in vector):
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="invalid_feature_values",
+            message="RDKit Morgan fingerprint calculation produced NaN or infinite values.",
+            stage="validation",
+        )
+    return vector.tolist(), None
+
+
 def _representation_failure(
     record: ChemistryAuditRecord,
     feature_set: FeatureSetConfig,
@@ -667,7 +897,7 @@ def _representation_failure(
         failure_type=failure_type,
         message=message,
         stage=stage,
-        recommended_action=_DESCRIPTOR_RECOMMENDED_ACTIONS[failure_type],
+        recommended_action=_RECOMMENDED_ACTIONS[failure_type],
     )
 
 
