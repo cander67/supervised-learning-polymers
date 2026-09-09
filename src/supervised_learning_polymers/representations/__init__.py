@@ -1,0 +1,43 @@
+"""Fixed-vector representation artifact contracts."""
+
+from supervised_learning_polymers.representations.contracts import (
+    FeatureFamily,
+    FeatureNamePolicy,
+    FeatureSetConfig,
+    FeatureSetDimension,
+    MolecularInputRepresentation,
+    RepresentationArtifact,
+    RepresentationArtifactPaths,
+    RepresentationAttemptRecord,
+    RepresentationAttemptStatus,
+    RepresentationConfig,
+    RepresentationFailureGroup,
+    RepresentationFailureRecord,
+    RepresentationFailureType,
+    RepresentationOutputMetadata,
+    RepresentationProcessingStage,
+    RepresentationSummary,
+    representation_artifact_dir,
+    representation_cache_key,
+)
+
+__all__ = [
+    "FeatureFamily",
+    "FeatureNamePolicy",
+    "FeatureSetConfig",
+    "FeatureSetDimension",
+    "MolecularInputRepresentation",
+    "RepresentationArtifact",
+    "RepresentationArtifactPaths",
+    "RepresentationConfig",
+    "RepresentationFailureGroup",
+    "RepresentationFailureRecord",
+    "RepresentationFailureType",
+    "RepresentationOutputMetadata",
+    "RepresentationProcessingStage",
+    "RepresentationSummary",
+    "RepresentationAttemptRecord",
+    "RepresentationAttemptStatus",
+    "representation_artifact_dir",
+    "representation_cache_key",
+]
