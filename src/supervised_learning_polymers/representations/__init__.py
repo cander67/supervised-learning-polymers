@@ -2,6 +2,8 @@
 
 from supervised_learning_polymers.representations.contracts import (
     FeatureFamily,
+    FeatureMatrixBundle,
+    FeatureMatrixMetadata,
     FeatureNamePolicy,
     FeatureSetConfig,
     FeatureSetDimension,
@@ -17,12 +19,18 @@ from supervised_learning_polymers.representations.contracts import (
     RepresentationOutputMetadata,
     RepresentationProcessingStage,
     RepresentationSummary,
+    feature_matrix_hash,
+    feature_names_hash,
+    generate_rdkit_2d_features,
+    rdkit_2d_feature_set_config,
     representation_artifact_dir,
     representation_cache_key,
 )
 
 __all__ = [
     "FeatureFamily",
+    "FeatureMatrixBundle",
+    "FeatureMatrixMetadata",
     "FeatureNamePolicy",
     "FeatureSetConfig",
     "FeatureSetDimension",
@@ -38,6 +46,10 @@ __all__ = [
     "RepresentationSummary",
     "RepresentationAttemptRecord",
     "RepresentationAttemptStatus",
+    "feature_matrix_hash",
+    "feature_names_hash",
+    "generate_rdkit_2d_features",
+    "rdkit_2d_feature_set_config",
     "representation_artifact_dir",
     "representation_cache_key",
 ]

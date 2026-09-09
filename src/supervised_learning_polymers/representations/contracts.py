@@ -1,12 +1,16 @@
 """Typed fixed-vector representation artifact contracts."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from hashlib import sha256
 from importlib import import_module
 from json import dumps
+from math import isfinite
 from pathlib import Path
 from typing import Any, Literal
 
+import numpy as np
+import numpy.typing as npt
 from pydantic import Field, model_validator
 
 from supervised_learning_polymers.chemistry import ChemistryAuditConfig, ChemistryAuditRecord
@@ -14,7 +18,10 @@ from supervised_learning_polymers.manifest import DatasetConfig
 from supervised_learning_polymers.targets import ContractModel
 
 _rdkit: Any = import_module("rdkit")
+Chem: Any = import_module("rdkit.Chem")
+Descriptors: Any = import_module("rdkit.Chem.Descriptors")
 RDKIT_VERSION = str(_rdkit.__version__)
+_MAX_FAILURE_EXAMPLES = 3
 
 MolecularInputRepresentation = Literal["capped_smiles", "standardized_smiles"]
 FeatureFamily = Literal["descriptor", "fingerprint"]
@@ -34,6 +41,17 @@ RepresentationProcessingStage = Literal[
     "fingerprint_generation",
     "validation",
 ]
+_RDKit_DESCRIPTOR_FEATURE_SET_ID = "rdkit_2d"
+_RDKit_DESCRIPTOR_METHOD = "rdkit.Chem.Descriptors"
+_DESCRIPTOR_RECOMMENDED_ACTIONS: dict[RepresentationFailureType, str] = {
+    "missing_input_smiles": (
+        "Inspect the upstream chemistry record or choose a representation with SMILES."
+    ),
+    "parse_error": "Inspect the selected chemistry representation.",
+    "descriptor_error": "Inspect descriptor support for this molecule.",
+    "invalid_feature_values": "Inspect generated descriptor values before model training.",
+    "fingerprint_error": "Inspect fingerprint settings for this molecule.",
+}
 
 
 class FeatureSetConfig(ContractModel):
@@ -343,6 +361,42 @@ class RepresentationOutputMetadata(ContractModel):
     content_hashes: Mapping[str, str] = Field(default_factory=dict)
 
 
+class FeatureMatrixMetadata(ContractModel):
+    """Metadata for an in-memory generated feature matrix before persistence."""
+
+    feature_set_id: str = Field(min_length=1)
+    feature_set_version: str = Field(min_length=1)
+    family: FeatureFamily
+    input_representation: MolecularInputRepresentation
+    rdkit_version: str = Field(min_length=1)
+    dtype: str = Field(min_length=1)
+    rows: int = Field(ge=0)
+    columns: int = Field(ge=1)
+    feature_names: tuple[str, ...] = Field(default_factory=tuple)
+    matrix_hash: str = Field(min_length=1)
+    feature_names_hash: str | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def validate_feature_names(self) -> "FeatureMatrixMetadata":
+        if self.feature_names and len(self.feature_names) != self.columns:
+            raise ValueError("feature names must match feature matrix column count")
+        return self
+
+
+@dataclass(frozen=True)
+class FeatureMatrixBundle:
+    """Generated matrix plus sidecar data that will later be persisted."""
+
+    feature_set: FeatureSetConfig
+    matrix: npt.NDArray[np.float64]
+    sample_ids: tuple[str, ...]
+    feature_names: tuple[str, ...]
+    metadata: FeatureMatrixMetadata
+    attempts: tuple[RepresentationAttemptRecord, ...]
+    failures: tuple[RepresentationFailureRecord, ...]
+    summary: RepresentationSummary
+
+
 def representation_artifact_dir(
     artifact_root: str | Path, representation: RepresentationConfig
 ) -> Path:
@@ -374,6 +428,150 @@ def representation_cache_key(
     return sha256(serialized.encode("utf-8")).hexdigest()
 
 
+def rdkit_2d_feature_set_config(
+    *,
+    input_representation: MolecularInputRepresentation = "capped_smiles",
+) -> FeatureSetConfig:
+    """Return the default RDKit named 2D descriptor feature-set config."""
+
+    descriptor_count = len(_rdkit_descriptor_items())
+    return FeatureSetConfig(
+        feature_set_id=_RDKit_DESCRIPTOR_FEATURE_SET_ID,
+        family="descriptor",
+        version="1",
+        input_representation=input_representation,
+        rdkit_method=_RDKit_DESCRIPTOR_METHOD,
+        settings={"descriptor_family": "all_named_2d"},
+        output_shape=(1, descriptor_count),
+        feature_name_policy="named",
+        hash_identity_fields=(
+            "feature_set_id",
+            "family",
+            "version",
+            "input_representation",
+            "rdkit_method",
+            "settings",
+            "output_shape",
+            "feature_name_policy",
+        ),
+    )
+
+
+def generate_rdkit_2d_features(
+    records: Sequence[ChemistryAuditRecord],
+    chemistry: ChemistryAuditConfig,
+    *,
+    feature_set: FeatureSetConfig | None = None,
+    rdkit_version: str = RDKIT_VERSION,
+) -> FeatureMatrixBundle:
+    """Generate deterministic RDKit named 2D descriptor features for valid chemistry records."""
+
+    descriptor_feature_set = feature_set or rdkit_2d_feature_set_config()
+    _validate_rdkit_2d_feature_set(descriptor_feature_set)
+    descriptor_items = _rdkit_descriptor_items()
+    descriptor_names = tuple(name for name, _ in descriptor_items)
+
+    valid_records = tuple(record for record in records if record.status == "valid")
+    matrix_rows: list[list[float]] = []
+    sample_ids: list[str] = []
+    attempts: list[RepresentationAttemptRecord] = []
+    failures: list[RepresentationFailureRecord] = []
+
+    for record in valid_records:
+        values, failure = _generate_rdkit_2d_record(
+            record,
+            descriptor_feature_set,
+            descriptor_items,
+        )
+        if failure is None and values is not None:
+            attempts.append(
+                RepresentationAttemptRecord.from_chemistry_record(
+                    record,
+                    chemistry,
+                    descriptor_feature_set,
+                    status="success",
+                )
+            )
+            matrix_rows.append(values)
+            sample_ids.append(record.sample_id)
+            continue
+
+        assert failure is not None
+        attempts.append(
+            RepresentationAttemptRecord.from_chemistry_record(
+                record,
+                chemistry,
+                descriptor_feature_set,
+                status="failed",
+                failure=failure,
+            )
+        )
+        failures.append(failure)
+
+    matrix = np.asarray(matrix_rows, dtype=np.float64)
+    if matrix.size == 0:
+        matrix = np.empty((0, len(descriptor_names)), dtype=np.float64)
+
+    metadata = FeatureMatrixMetadata(
+        feature_set_id=descriptor_feature_set.feature_set_id,
+        feature_set_version=descriptor_feature_set.version,
+        family=descriptor_feature_set.family,
+        input_representation=descriptor_feature_set.input_representation,
+        rdkit_version=rdkit_version,
+        dtype=str(matrix.dtype),
+        rows=matrix.shape[0],
+        columns=matrix.shape[1],
+        feature_names=descriptor_names,
+        matrix_hash=feature_matrix_hash(matrix),
+        feature_names_hash=feature_names_hash(descriptor_names),
+    )
+    summary = RepresentationSummary(
+        total_chemistry_valid_records=len(valid_records),
+        attempted_records=len(attempts),
+        successful_records=len(sample_ids),
+        failed_representation_records=len(failures),
+        skipped_upstream_chemistry_records=len(records) - len(valid_records),
+        dimensions=(
+            FeatureSetDimension(
+                feature_set_id=descriptor_feature_set.feature_set_id,
+                rows=matrix.shape[0],
+                columns=matrix.shape[1],
+            ),
+        ),
+        failure_groups=_group_representation_failures(failures),
+    )
+    return FeatureMatrixBundle(
+        feature_set=descriptor_feature_set,
+        matrix=matrix,
+        sample_ids=tuple(sample_ids),
+        feature_names=descriptor_names,
+        metadata=metadata,
+        attempts=tuple(attempts),
+        failures=tuple(failures),
+        summary=summary,
+    )
+
+
+def feature_matrix_hash(matrix: npt.NDArray[np.float64]) -> str:
+    """Return a deterministic content hash for a feature matrix."""
+
+    normalized = np.ascontiguousarray(matrix, dtype=np.float64)
+    payload = {
+        "dtype": str(normalized.dtype),
+        "shape": normalized.shape,
+        "bytes": normalized.tobytes().hex(),
+    }
+    serialized = dumps(payload, sort_keys=True, separators=(",", ":"))
+    return sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def feature_names_hash(feature_names: Sequence[str]) -> str:
+    """Return a deterministic hash for feature names and order."""
+
+    serialized = dumps(tuple(feature_names), sort_keys=True, separators=(",", ":"))
+    return sha256(serialized.encode("utf-8")).hexdigest()
+
+
 def _selected_input_smiles(
     chemistry_record: ChemistryAuditRecord,
     input_representation: MolecularInputRepresentation,
@@ -381,6 +579,124 @@ def _selected_input_smiles(
     if input_representation == "standardized_smiles":
         return chemistry_record.standardized_smiles
     return chemistry_record.capped_smiles
+
+
+def _validate_rdkit_2d_feature_set(feature_set: FeatureSetConfig) -> None:
+    if feature_set.family != "descriptor":
+        raise ValueError("RDKit 2D feature set must use descriptor family")
+    if feature_set.rdkit_method != _RDKit_DESCRIPTOR_METHOD:
+        raise ValueError(f"RDKit 2D feature set must use {_RDKit_DESCRIPTOR_METHOD}")
+    if feature_set.feature_name_policy != "named":
+        raise ValueError("RDKit 2D feature set must use named feature policy")
+    if len(feature_set.output_shape) != 2:
+        raise ValueError("RDKit 2D feature set output shape must be matrix-shaped")
+    if feature_set.output_shape[1] != len(_rdkit_descriptor_items()):
+        raise ValueError("RDKit 2D feature set column count must match descriptor count")
+
+
+def _generate_rdkit_2d_record(
+    record: ChemistryAuditRecord,
+    feature_set: FeatureSetConfig,
+    descriptor_items: tuple[tuple[str, Any], ...],
+) -> tuple[list[float] | None, RepresentationFailureRecord | None]:
+    input_smiles = _selected_input_smiles(record, feature_set.input_representation)
+    if input_smiles is None or input_smiles.strip() == "":
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="missing_input_smiles",
+            message=(
+                f"Missing representation input SMILES for '{feature_set.input_representation}'."
+            ),
+            stage="input",
+        )
+
+    with Chem.rdBase.BlockLogs():
+        molecule = Chem.MolFromSmiles(input_smiles)
+    if molecule is None:
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="parse_error",
+            message="RDKit could not parse selected representation input SMILES.",
+            stage="parse",
+        )
+
+    values: list[float] = []
+    try:
+        for _, descriptor_function in descriptor_items:
+            values.append(float(descriptor_function(molecule)))
+    except Exception as error:
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="descriptor_error",
+            message=f"RDKit descriptor calculation failed: {error}",
+            stage="descriptor_generation",
+        )
+
+    if any(not isfinite(value) for value in values):
+        return None, _representation_failure(
+            record,
+            feature_set,
+            selected_input_smiles=input_smiles,
+            failure_type="invalid_feature_values",
+            message="RDKit descriptor calculation produced NaN or infinite values.",
+            stage="validation",
+        )
+    return values, None
+
+
+def _representation_failure(
+    record: ChemistryAuditRecord,
+    feature_set: FeatureSetConfig,
+    *,
+    selected_input_smiles: str | None,
+    failure_type: RepresentationFailureType,
+    message: str,
+    stage: RepresentationProcessingStage,
+) -> RepresentationFailureRecord:
+    return RepresentationFailureRecord(
+        sample_id=record.sample_id,
+        feature_set_id=feature_set.feature_set_id,
+        input_representation=feature_set.input_representation,
+        selected_input_smiles=selected_input_smiles,
+        failure_type=failure_type,
+        message=message,
+        stage=stage,
+        recommended_action=_DESCRIPTOR_RECOMMENDED_ACTIONS[failure_type],
+    )
+
+
+def _group_representation_failures(
+    failures: Sequence[RepresentationFailureRecord],
+) -> tuple[RepresentationFailureGroup, ...]:
+    grouped_failures: dict[tuple[str, RepresentationFailureType], list[RepresentationFailureRecord]]
+    grouped_failures = {}
+    for failure in failures:
+        grouped_failures.setdefault((failure.feature_set_id, failure.failure_type), []).append(
+            failure
+        )
+
+    return tuple(
+        RepresentationFailureGroup(
+            feature_set_id=feature_set_id,
+            failure_type=failure_type,
+            count=len(group),
+            example_sample_ids=tuple(
+                failure.sample_id for failure in group[:_MAX_FAILURE_EXAMPLES]
+            ),
+            recommended_action=group[0].recommended_action,
+        )
+        for (feature_set_id, failure_type), group in sorted(grouped_failures.items())
+    )
+
+
+def _rdkit_descriptor_items() -> tuple[tuple[str, Any], ...]:
+    return tuple(Descriptors.descList)
 
 
 def _duplicates(values: tuple[str, ...]) -> list[str]:
