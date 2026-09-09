@@ -25,8 +25,9 @@ Status legend:
 
 ## Current Work
 
-No PRD is active. The next project step is a user-testing round against the accepted GUI/backend
-artifact viewer and structure workbench before selecting the next implementation PRD.
+| Order | Status | PRD | Scope | Notes |
+| --- | --- | --- | --- | --- |
+| 6 | Active | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | Implementation is underway on `vector-representation`; descriptor, Morgan fingerprint, persistence, CLI, and documentation slices are in progress toward PRD review. |
 
 PRD 01 establishes the contract that later items should consume. The implemented public surfaces are
 documented in [Benchmark Contract](benchmark-contract.md), and target context is documented in
@@ -36,7 +37,6 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
 
 | Order | Status | PRD | Scope | Blocked by |
 | --- | --- | --- | --- | --- |
-| 6 | Planned | [Fixed-Vector Representations](prds/05-fixed-vector-representations.md) | Generate versioned descriptor and fingerprint artifacts from validated chemistry records. | None |
 | 7 | Planned | [Frozen Splits And Leakage Checks](prds/06-frozen-splits-and-leakage-checks.md) | Persist random, grouped, and structure-aware split artifacts with leakage diagnostics. | None |
 | 8 | Planned | [First Reproducible Baseline Run](prds/07-first-reproducible-baseline-run.md) | Train cheap leakage-safe baselines with tracked configs, metrics, predictions, and artifacts. | PRDs 05 and 06 |
 | 9 | Planned | [Search Infrastructure](prds/08-search-infrastructure.md) | Add grid, random, and Bayesian search with trial persistence and resume behavior. | PRD 07 baseline path |
@@ -55,5 +55,5 @@ documented in [Benchmark Contract](benchmark-contract.md), and target context is
   depend on exists.
 - Update this backlog when a PRD enters implementation, reaches review, or is split into smaller
   PRDs.
-- Use the next user-testing round to decide whether PRD 05 remains the best next implementation
-  milestone or whether a smaller interface, data-quality, or modeling PRD should be pulled forward.
+- Use PRD 05 artifact review to decide whether PRD 06 frozen splits can proceed directly or whether
+  a smaller interface, data-quality, or modeling PRD should be pulled forward.

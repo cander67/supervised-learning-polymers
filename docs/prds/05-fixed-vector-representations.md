@@ -45,6 +45,9 @@ descriptor sets, Morgan-style fingerprints, feature metadata, hashes, and failur
 - Document the expected artifact bundle layout and how downstream split/model workflows should
   reference feature-set IDs and matrix metadata without recomputing features.
 
+Implementation documentation lives in
+[Fixed-Vector Representations](../fixed-vector-representations.md).
+
 ## Testing Decisions
 
 - Test determinism, dimensions, failure reporting, and config validation.

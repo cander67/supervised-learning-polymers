@@ -6,11 +6,12 @@ Reliable models can be deployed for predicting polymer properties, aiding in mat
 
 ## Documentation
 
-- Current status: PRDs 01, 02, 03, 04, and 13 are accepted. No PRD is active while the structure
-  workbench gets a user-testing round before the next implementation PRD is selected.
+- Current status: PRDs 01, 02, 03, 04, and 13 are accepted. PRD 05 fixed-vector
+  representations is active on the `vector-representation` branch.
 - [Project backlog](docs/backlog.md)
 - [Benchmark contract](docs/benchmark-contract.md)
 - [Chemistry audit](docs/chemistry-audit.md)
+- [Fixed-vector representations](docs/fixed-vector-representations.md)
 - [Geometry groundwork](docs/geometry-groundwork.md)
 - [Interface discovery GUI backend](docs/interface-discovery-gui-backend.md)
 - [Public interface discovery decision](docs/interface-discovery-decision.md)
@@ -62,6 +63,14 @@ slp-geometry-feasibility artifacts/chemistry/chemistry-audit-hydrogen \
   --output-root artifacts \
   --geometry-config-id geometry-rdkit-hydrogen \
   --input-representation capped_smiles
+```
+
+Generate fixed-vector representation artifacts from the chemistry audit with:
+
+```bash
+slp-representations artifacts/chemistry/chemistry-audit-hydrogen \
+  --output-root artifacts \
+  --representation-config-id fixed-vector-hydrogen
 ```
 
 Then launch the artifact viewer and structure workbench against existing local chemistry and
